@@ -28,14 +28,37 @@ class RBtree {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+  struct Node;
+
   struct BasicNode {
-    enum class Color : bool { red, black };
+    enum class Color : bool { Red, Black };
 
     BasicNode* left;
     BasicNode* right;
     BasicNode* parent;
 
     Color color;
+
+    bool is_left() const { return parent->left == this; }
+    bool is_right() const { return parent->right == this; }
+
+    bool is_red() const { return color == Color::Red; }
+    bool is_black() const { return color == Color::Black; }
+
+    const key_type& get_key() const {
+      assert(dynamic_cast<const Node*>(this) != nullptr);
+      return static_cast<const Node*>(this)->val.first;
+    }
+
+    mapped_type& get_mapped() {
+      assert(dynamic_cast<Node*>(this) != nullptr);
+      return static_cast<Node*>(this)->val.second;
+    }
+
+    const mapped_type& get_mapped() const {
+      assert(dynamic_cast<const Node*>(this) != nullptr);
+      return const_cast<BasicNode*>(this)->get_mapped();
+    }
   };
 
   struct Node : BasicNode {
@@ -50,20 +73,104 @@ class RBtree {
 
   using Color = basic_node_type::Color;
 
-  RBtree() {}
+  RBtree() { insert(&NIL_); }
 
-  template <class... Args>
-  std::pair<iterator, bool> emplace(Args&&... args) {
+  // template <class... Args>
+  // std::pair<iterator, bool> emplace(Args&&... args) {
 
-  }
+  // }
 
  private:
-  void left_rotate() {
+  void insert(basic_node_type* z) {
+    basic_node_type* x = root_;
+    basic_node_type* y = &NIL_;
 
+    while (x != &NIL_) {
+      y = x;
+      if (compare_(x->get_key(), z->get_key())) {
+        x = x->right;
+      } else {
+        x = x->left;
+      }
+    }
+
+    z->parent = y;
+    if (y == &NIL_) {
+      root_ = z;
+    } else {
+      if (compare_(y->get_key(), z->get_key())) {
+        y->right = z;
+      } else {
+        y->left = z;
+      }
+    }
+
+    insert_fixup(z);
   }
 
-  void right_rotate() {
-    
+  void insert_fixup(basic_node_type* current) {
+    basic_node_type* parent = current->parent;
+    while (parent->is_red()) {
+      if (parent->is_left()) {
+        basic_node_type* uncle = parent->parent->right;
+        if (uncle->is_red()) {
+        }
+        if (uncle->is_black()) {
+        }
+      } else {
+        basic_node_type* uncle = parent->parent->left;
+      }
+    }
+  }
+
+  static bool isNodeLeft(basic_node_type* node) {
+    return node->parent->left == node;
+  }
+
+  static bool isNodeRight(basic_node_type* node) {
+    return node->parent->right == node;
+  }
+
+  void left_rotate(basic_node_type* x) {
+    basic_node_type* y = x->right;
+
+    y->parent = x->parent;
+    x->parent = y;
+
+    if (y->parent->left == x) {
+      y->parent->left = y;
+    } else {
+      y->parent->right = y;
+    }
+
+    if (y->parent == NIL_) {
+      root_ = y;
+    }
+
+    x->right = y->left;
+    x->right->parent = x;
+    y->left = x;
+  }
+
+  void right_rotate(basic_node_type* y) {
+    basic_node_type* x = y->left;
+
+    x->parent = y->parent;
+    y->parent = x;
+
+    if (x->parent->left == y) {
+      x->parent->left = x;
+    } else {
+      x->parent->right = x;
+    }
+
+    if (x->parent == &NIL_) {
+      root_ = x;
+    }
+
+    y->left = x->right;
+    y->left->parent = y;
+    x->right = y;
   }
 
   node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
@@ -75,6 +182,7 @@ class RBtree {
   }
 
   allocator_type alloc_{};
-  basic_node_type NIL_{&NIL_, &NIL_, &NIL_, Color::black};
+  basic_node_type NIL_{&NIL_, &NIL_, &NIL_, Color::Black};
   basic_node_type* root_ = &NIL_;
+  key_compare compare_{};
 };
