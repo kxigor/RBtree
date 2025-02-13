@@ -109,26 +109,47 @@ class RBtree {
   }
 
   void insert_fixup(basic_node_type* current) {
-    basic_node_type* parent = current->parent;
-    while (parent->is_red()) {
-      if (parent->is_left()) {
-        basic_node_type* uncle = parent->parent->right;
-        if (uncle->is_red()) {
-        }
-        if (uncle->is_black()) {
-        }
-      } else {
-        basic_node_type* uncle = parent->parent->left;
+    while (current->parent->is_red()) {
+      if (current->parent->is_left()) {
+        current = insert_handle_left_case(current);
+      } else /*if (current->parent->is_right())*/ {
+        current = insert_handle_right_case(current);
       }
+    }
+    root_->color = Color::Black;
+  }
+
+  basic_node_type* insert_handle_left_case(basic_node_type* current) {
+    basic_node_type* parent = current->parent;
+    basic_node_type* grandparent = parent->parent;
+    basic_node_type* uncle = grandparent->right;
+    if (uncle->is_red()) {
+      parent->color = Color::Black;
+      uncle->color = Color::Black;
+      grandparent->color = Color::Red;
+      current = grandparent;
+    } else /*if (uncle->is_black())*/ {
+      if (current->is_right()) {
+        left_rotate(parent);
+        std::swap(parent, current);
+      }
+      parent->color = Color::Black;
+      grandparent->color = Color::Red;
+      right_rotate(grandparent);
     }
   }
 
-  static bool isNodeLeft(basic_node_type* node) {
-    return node->parent->left == node;
-  }
-
-  static bool isNodeRight(basic_node_type* node) {
-    return node->parent->right == node;
+  basic_node_type* insert_handle_right_case(basic_node_type* current) {
+    basic_node_type* parent = current->parent;
+    basic_node_type* grandparent = parent->parent;
+    basic_node_type* uncle = grandparent->left;
+    if (uncle->is_red()) {
+      parent->color = Color::Black;
+      uncle->color = Color::Black;
+      grandparent->color = Color::Red;
+      current = grandparent;
+    } else /*if (uncle->is_black())*/ {
+        }
   }
 
   void left_rotate(basic_node_type* x) {
