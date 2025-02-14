@@ -97,10 +97,21 @@ class RBtree {
   RBtree() = default;
   ~RBtree() { clear(); }
 
-  /*============================ Modifiers ============================*/
-  void clear() noexcept {
-    // TODO: BFS
+  /*============================ Iterators ============================*/
+  iterator begin() {
+    basic_node_type* most_left = root_;
+    while (most_left->left != &NIL_) {
+      most_left = most_left->left;
+    }
+    return {most_left, &NIL_};
   }
+
+  iterator end() { return {&NIL_, &NIL_}; }
+  /*============================ Capacity =============================*/
+  size_type size() const { return size_; }
+
+  /*============================ Modifiers ============================*/
+  void clear() noexcept { clear_impl(); }
 
   iterator erase(iterator pos) noexcept;
   iterator erase(const_iterator pos) noexcept;
@@ -120,16 +131,6 @@ class RBtree {
               std::move(value.second));
     return insert(static_cast<basic_node_type*>(new_node));
   }
-
-  iterator begin() {
-    basic_node_type* most_left = root_;
-    while (most_left->left != &NIL_) {
-      most_left = most_left->left;
-    }
-    return {most_left, &NIL_};
-  }
-
-  iterator end() { return {&NIL_, &NIL_}; }
 
  private:
   std::pair<iterator, bool> insert(basic_node_type* z) {
@@ -160,6 +161,7 @@ class RBtree {
       }
     }
 
+    ++size_;
     insert_fixup(z);
     return {{z, &NIL_}, true};
   }
@@ -242,6 +244,33 @@ class RBtree {
     NIL_.left = new_root;
   }
 
+  void clear_impl() noexcept {
+    basic_node_type* current = root_;
+
+    while (current != &NIL_) {
+      while (current->left != &NIL_ || current->right != &NIL_) {
+        if (current->left != &NIL_) {
+          current = current->left;
+        } else {
+          current = current->right;
+        }
+      }
+      basic_node_type* next = current->parent;
+      node_type* current_node = static_cast<node_type*>(current);
+      destroy(current_node);
+      deallocate(current_node);
+      if (next->left == current) {
+        next->left = &NIL_;
+      } else {
+        next->right = &NIL_;
+      }
+      current = next;
+    }
+
+    update_root(&NIL_);
+    size_ = 0;
+  }
+
   node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
 
   void deallocate(node_type* object) noexcept {
@@ -262,6 +291,7 @@ class RBtree {
   basic_node_type NIL_{&NIL_, &NIL_, &NIL_, Color::Black};
   basic_node_type* root_ = &NIL_;
   key_compare compare_{};
+  size_type size_{};
 };
 
 template <class Key, class T, class Compare, class Allocator>
