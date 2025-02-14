@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -23,8 +24,11 @@ class RBtree {
   using pointer = typename allocator_traits::pointer;
   using const_pointer = typename allocator_traits::const_pointer;
 
-  using iterator = void;       /*TODO*/
-  using const_iterator = void; /*TODO*/
+  template <bool IsConst>
+  class Iterator;
+
+  using iterator = Iterator<false>;
+  using const_iterator = Iterator<true>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
@@ -32,6 +36,10 @@ class RBtree {
 
   struct BasicNode {
     enum class Color : bool { Red, Black };
+
+    BasicNode() = delete;
+    BasicNode(BasicNode* left, BasicNode* right, BasicNode* parent, Color color)
+        : left(left), right(right), parent(parent), color(color) {}
 
     BasicNode* left;
     BasicNode* right;
@@ -46,22 +54,33 @@ class RBtree {
     bool is_black() const { return color == Color::Black; }
 
     const key_type& get_key() const {
-      assert(dynamic_cast<const Node*>(this) != nullptr);
-      return static_cast<const Node*>(this)->val.first;
+      // assert(dynamic_cast<const Node*>(this) != nullptr);
+      return get_value().first;
     }
 
     mapped_type& get_mapped() {
-      assert(dynamic_cast<Node*>(this) != nullptr);
-      return static_cast<Node*>(this)->val.second;
+      // assert(dynamic_cast<Node*>(this) != nullptr);
+      return get_value().second;
     }
 
     const mapped_type& get_mapped() const {
-      assert(dynamic_cast<const Node*>(this) != nullptr);
+      // assert(dynamic_cast<const Node*>(this) != nullptr);
       return const_cast<BasicNode*>(this)->get_mapped();
+    }
+
+    value_type& get_value() { return static_cast<Node*>(this)->val; }
+
+    const value_type& get_value() const {
+      return const_cast<BasicNode*>(this)->get_value();
     }
   };
 
   struct Node : BasicNode {
+    template <typename... Args>
+    Node(BasicNode* left, BasicNode* right, BasicNode* parent,
+         BasicNode::Color color, Args&&... args)
+        : BasicNode(left, right, parent, color),
+          val(std::forward<Args>(args)...) {}
     value_type val;
   };
 
@@ -73,15 +92,45 @@ class RBtree {
 
   using Color = basic_node_type::Color;
 
-  RBtree() { insert(&NIL_); }
+  RBtree() = default;
+  ~RBtree() { clear(); }
 
-  // template <class... Args>
-  // std::pair<iterator, bool> emplace(Args&&... args) {
+  /*============================ Modifiers ============================*/
+  void clear() noexcept {
+    // TODO: BFS
+  }
 
+  iterator erase(iterator pos) noexcept;
+  iterator erase(const_iterator pos) noexcept;
+  iterator erase(iterator first, iterator last) noexcept;
+
+  // template <class P>
+  // std::pair<iterator, bool> insert(P&& value) {
+  //   node_type* new_node = allocate();
+  //   construct(new_node, std::forward<P>(value));
+  //   return insert(static_cast<basic_node_type*>(new_node));
   // }
 
+  std::pair<iterator, bool> insert(value_type&& value) {
+    node_type* new_node = allocate();
+    construct(new_node, &NIL_, &NIL_, &NIL_, Color::Red,
+              std::move(const_cast<key_type&>(value.first)),
+              std::move(value.second));
+    return insert(static_cast<basic_node_type*>(new_node));
+  }
+
+  iterator begin() {
+    basic_node_type* most_left = root_;
+    while (most_left->left != &NIL_) {
+      most_left = most_left->left;
+    }
+    return {most_left, &NIL_};
+  }
+
+  iterator end() { return {&NIL_, &NIL_}; }
+
  private:
-  void insert(basic_node_type* z) {
+  std::pair<iterator, bool> insert(basic_node_type* z) {
     basic_node_type* x = root_;
     basic_node_type* y = &NIL_;
 
@@ -106,92 +155,74 @@ class RBtree {
     }
 
     insert_fixup(z);
+    return {{z, &NIL_}, true};
   }
 
   void insert_fixup(basic_node_type* current) {
     while (current->parent->is_red()) {
       if (current->parent->is_left()) {
-        current = insert_handle_left_case(current);
+        current = insert_fixup_left_case(current);
       } else /*if (current->parent->is_right())*/ {
-        current = insert_handle_right_case(current);
+        current = insert_fixup_right_case(current);
       }
     }
     root_->color = Color::Black;
   }
 
-  basic_node_type* insert_handle_left_case(basic_node_type* current) {
+  basic_node_type* insert_fixup_left_case(basic_node_type* current) {
+    return insert_fixup_impl<&basic_node_type::left, &basic_node_type::right>(
+        current);
+  }
+
+  basic_node_type* insert_fixup_right_case(basic_node_type* current) {
+    return insert_fixup_impl<&basic_node_type::right, &basic_node_type::left>(
+        current);
+  }
+
+  template <basic_node_type* basic_node_type::*direction1,
+            basic_node_type* basic_node_type::*direction2>
+  basic_node_type* insert_fixup_impl(basic_node_type* current) {
     basic_node_type* parent = current->parent;
     basic_node_type* grandparent = parent->parent;
-    basic_node_type* uncle = grandparent->right;
+    basic_node_type* uncle = grandparent->*direction2;
     if (uncle->is_red()) {
       parent->color = Color::Black;
       uncle->color = Color::Black;
       grandparent->color = Color::Red;
       current = grandparent;
-    } else /*if (uncle->is_black())*/ {
-      if (current->is_right()) {
-        left_rotate(parent);
+    } else {
+      if (current == parent->*direction2) {
+        rotate_impl<direction2, direction1>(parent);
         std::swap(parent, current);
       }
       parent->color = Color::Black;
       grandparent->color = Color::Red;
-      right_rotate(grandparent);
+      rotate_impl<direction1, direction2>(grandparent);
     }
+    return current;
   }
 
-  basic_node_type* insert_handle_right_case(basic_node_type* current) {
-    basic_node_type* parent = current->parent;
-    basic_node_type* grandparent = parent->parent;
-    basic_node_type* uncle = grandparent->left;
-    if (uncle->is_red()) {
-      parent->color = Color::Black;
-      uncle->color = Color::Black;
-      grandparent->color = Color::Red;
-      current = grandparent;
-    } else /*if (uncle->is_black())*/ {
-        }
-  }
+  template <basic_node_type* basic_node_type::*direction1,
+            basic_node_type* basic_node_type::*direction2>
+  void rotate_impl(basic_node_type* node) {
+    basic_node_type* child = node->*direction1;
 
-  void left_rotate(basic_node_type* x) {
-    basic_node_type* y = x->right;
+    child->parent = node->parent;
+    node->parent = child;
 
-    y->parent = x->parent;
-    x->parent = y;
-
-    if (y->parent->left == x) {
-      y->parent->left = y;
+    if (child->parent->left == node) {
+      child->parent->left = child;
     } else {
-      y->parent->right = y;
+      child->parent->right = child;
     }
 
-    if (y->parent == NIL_) {
-      root_ = y;
+    if (child->parent == &NIL_) {
+      root_ = child;
     }
 
-    x->right = y->left;
-    x->right->parent = x;
-    y->left = x;
-  }
-
-  void right_rotate(basic_node_type* y) {
-    basic_node_type* x = y->left;
-
-    x->parent = y->parent;
-    y->parent = x;
-
-    if (x->parent->left == y) {
-      x->parent->left = x;
-    } else {
-      x->parent->right = x;
-    }
-
-    if (x->parent == &NIL_) {
-      root_ = x;
-    }
-
-    y->left = x->right;
-    y->left->parent = y;
-    x->right = y;
+    node->*direction1 = child->*direction2;
+    (node->*direction1)->parent = node;
+    child->*direction2 = node;
   }
 
   node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
@@ -202,8 +233,133 @@ class RBtree {
                                      std::forward<Args>(args)...);
   }
 
-  allocator_type alloc_{};
+  node_allocator_type alloc_{};
   basic_node_type NIL_{&NIL_, &NIL_, &NIL_, Color::Black};
   basic_node_type* root_ = &NIL_;
   key_compare compare_{};
+};
+
+template <class Key, class T, class Compare, class Allocator>
+template <bool IsConst>
+class RBtree<Key, T, Compare, Allocator>::Iterator {
+  /*======================== Usings and Structures =========================*/
+  friend class List;
+  using rbtree = RBtree<Key, T, Compare, Allocator>;
+  using basic_node_type = rbtree::basic_node_type;
+  using node_type = rbtree::node_type;
+
+ public:
+  using difference_type = ptrdiff_t;
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = rbtree::value_type;
+  using pointer = std::conditional_t<IsConst, const value_type*, value_type*>;
+  using reference = std::conditional_t<IsConst, const value_type&, value_type&>;
+
+  /*============================ Constructors ==============================*/
+  Iterator() = default;
+
+  Iterator(basic_node_type* node, basic_node_type* nil)
+      : current_node_(node), NIL_(nil) {}
+
+  Iterator(const Iterator& /*unused*/) = default;
+
+  /*============================== Operators ===============================*/
+  Iterator& operator=(const Iterator& /*unused*/) = default;
+
+  Iterator& operator++() {
+    if (current_node_->right != NIL_) {
+      current_node_ = current_node_->right;
+      slide_left_fully();
+      return *this;
+    }
+
+    slide_up_while_not_left();
+
+    return *this;
+  }
+
+  Iterator operator++(int) {
+    Iterator result = *this;
+    ++*this;
+    return result;
+  }
+
+  Iterator& operator--() {
+    if (current_node_->left != NIL_) {
+      current_node_ = current_node_->left;
+      slide_right_fully();
+      return *this;
+    }
+
+    slide_up_while_not_right();
+
+    return *this;
+  }
+
+  Iterator operator--(int) {
+    Iterator result = *this;
+    --*this;
+    return result;
+  }
+
+  reference operator*() const {
+    return const_cast<reference>(current_node_->get_value());
+  }
+
+  pointer operator->() const {
+    return const_cast<pointer>(std::addressof(current_node_->get_value()));
+  }
+
+  bool operator==(const Iterator& other) const {
+    return current_node_ == other.current_node_;
+  }
+
+  bool operator!=(const Iterator& other) const { return !(*this == other); }
+
+  operator Iterator<true>() const { return Iterator<true>(current_node_); }
+
+ private:
+  void slide_left_fully() {
+    while (current_node_->left != NIL_) {
+      current_node_ = current_node_->left;
+    }
+  }
+
+  void slide_right_fully() {
+    while (current_node_->right != NIL_) {
+      current_node_ = current_node_->right;
+    }
+  }
+
+  void slide_up_while_not_left() {
+    basic_node_type* prev_node = nullptr;
+    while (current_node_->is_right() && !is_root()) {
+      prev_node = current_node_;
+      current_node_ = current_node_->parent;
+    }
+    prev_node = current_node_;
+    current_node_ = current_node_->parent;
+    if (current_node_->right == prev_node && is_root()) {
+      current_node_ = NIL_;
+    }
+  }
+
+  void slide_up_while_not_right() {
+    basic_node_type* prev_node = nullptr;
+    while (current_node_->is_left() && !is_root()) {
+      prev_node = current_node_;
+      current_node_ = current_node_->parent;
+    }
+    prev_node = current_node_;
+    current_node_ = current_node_->parent;
+    if (current_node_->left == prev_node && is_root()) {
+      current_node_ = NIL_;
+    }
+  }
+
+  bool is_root() { return current_node_->parent == NIL_; }
+
+  /*================================ Fields ================================*/
+  basic_node_type* current_node_{nullptr};
+  basic_node_type* NIL_{nullptr};
 };
