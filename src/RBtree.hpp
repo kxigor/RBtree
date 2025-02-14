@@ -155,8 +155,7 @@ class RBtree {
       } else if (compare_(z->get_key(), y->get_key())) {
         y->left = z;
       } else {
-        destroy(static_cast<node_type*>(z));
-        deallocate(static_cast<node_type*>(z));
+        annihilate(z);
         return {end(), false};
       }
     }
@@ -256,9 +255,7 @@ class RBtree {
         }
       }
       basic_node_type* next = current->parent;
-      node_type* current_node = static_cast<node_type*>(current);
-      destroy(current_node);
-      deallocate(current_node);
+      annihilate(current);
       if (next->left == current) {
         next->left = &NIL_;
       } else {
@@ -269,6 +266,13 @@ class RBtree {
 
     update_root(&NIL_);
     size_ = 0;
+  }
+
+  void annihilate(basic_node_type* object) {
+    assert(dynamic_cast<node_type*>(object) != nullptr);
+    node_type* currect_pointer = dynamic_cast<node_type*>(object);
+    destroy(currect_pointer);
+    deallocate(currect_pointer);
   }
 
   node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
