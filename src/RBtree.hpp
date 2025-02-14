@@ -41,6 +41,8 @@ class RBtree {
     BasicNode(BasicNode* left, BasicNode* right, BasicNode* parent, Color color)
         : left(left), right(right), parent(parent), color(color) {}
 
+    virtual ~BasicNode() = default;
+
     BasicNode* left;
     BasicNode* right;
     BasicNode* parent;
@@ -54,17 +56,17 @@ class RBtree {
     bool is_black() const { return color == Color::Black; }
 
     const key_type& get_key() const {
-      // assert(dynamic_cast<const Node*>(this) != nullptr);
+      assert(dynamic_cast<const Node*>(this) != nullptr);
       return get_value().first;
     }
 
     mapped_type& get_mapped() {
-      // assert(dynamic_cast<Node*>(this) != nullptr);
+      assert(dynamic_cast<Node*>(this) != nullptr);
       return get_value().second;
     }
 
     const mapped_type& get_mapped() const {
-      // assert(dynamic_cast<const Node*>(this) != nullptr);
+      assert(dynamic_cast<const Node*>(this) != nullptr);
       return const_cast<BasicNode*>(this)->get_mapped();
     }
 
@@ -149,8 +151,12 @@ class RBtree {
     } else {
       if (compare_(y->get_key(), z->get_key())) {
         y->right = z;
-      } else {
+      } else if (compare_(z->get_key(), y->get_key())) {
         y->left = z;
+      } else {
+        destroy(static_cast<node_type*>(z));
+        deallocate(static_cast<node_type*>(z));
+        return {end(), false};
       }
     }
 
@@ -210,27 +216,46 @@ class RBtree {
     child->parent = node->parent;
     node->parent = child;
 
-    if (child->parent->left == node) {
-      child->parent->left = child;
-    } else {
-      child->parent->right = child;
-    }
-
     if (child->parent == &NIL_) {
-      root_ = child;
+      update_root(child);
+    } else {
+      if (child->parent->left == node) {
+        child->parent->left = child;
+      } else {
+        child->parent->right = child;
+      }
     }
 
     node->*direction1 = child->*direction2;
-    (node->*direction1)->parent = node;
+    if (node->*direction1 != &NIL_) {
+      (node->*direction1)->parent = node;
+    }
     child->*direction2 = node;
   }
 
+  bool compare_equal(const key_type& lhs, const key_type& rhs) {
+    return !compare_(lhs, rhs) && !compare_(rhs, lhs);
+  }
+
+  void update_root(basic_node_type* new_root) {
+    root_ = new_root;
+    NIL_.left = new_root;
+  }
+
   node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
+
+  void deallocate(node_type* object) noexcept {
+    node_allocator_traits::deallocate(alloc_, object, 1);
+  }
 
   template <typename... Args>
   void construct(node_type* object, Args&&... args) {
     node_allocator_traits::construct(alloc_, object,
                                      std::forward<Args>(args)...);
+  }
+
+  void destroy(node_type* object) noexcept {
+    node_allocator_traits::destroy(alloc_, object);
   }
 
   node_allocator_type alloc_{};

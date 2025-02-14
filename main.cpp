@@ -2,6 +2,7 @@
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <map>
 
 #include "src/RBtree.hpp"
 
@@ -18,7 +19,8 @@ int main() {
     mtree.insert({arr[i], arr[i]});
   }
 
-  auto it = mtree.begin();
+  std::cout << std::prev(mtree.end())->first << ' ' << std::prev(mtree.end())->first << std::endl;
 
-  std::cout << std::prev(mtree.end())->first << ' ' << std::endl;
+  std::cout << sizeof(std::map<int, int>) << std::endl;
+  std::cout << sizeof(mtree) << std::endl;
 }
