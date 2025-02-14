@@ -80,7 +80,7 @@ class RBtree {
   struct Node : BasicNode {
     template <typename... Args>
     Node(BasicNode* left, BasicNode* right, BasicNode* parent,
-         BasicNode::Color color, Args&&... args)
+         typename BasicNode::Color color, Args&&... args)
         : BasicNode(left, right, parent, color),
           val(std::forward<Args>(args)...) {}
     value_type val;
@@ -92,7 +92,7 @@ class RBtree {
       allocator_type>::template rebind_alloc<node_type>;
   using node_allocator_traits = std::allocator_traits<node_allocator_type>;
 
-  using Color = basic_node_type::Color;
+  using Color = typename basic_node_type::Color;
 
   RBtree() = default;
   ~RBtree() { clear(); }
