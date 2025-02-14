@@ -36,3 +36,6 @@
 
 # Build
 build
+
+# Graph
+graph.dot
