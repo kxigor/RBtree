@@ -224,7 +224,7 @@ TEST(RBTREE, LOWER_BOUND) {
   RBtree<int, int> m;
   insert_sequence(m, 0, kInsSize, 2);
 
-  for (int i = 0; i < kInsSize; ++i) {
+  for (int i = 0; i < kInsSize - 1; ++i) {
     auto it = m.lower_bound(i);
     if (i % 2 == 0) {
       ASSERT_EQ(it->first, i);
@@ -233,6 +233,7 @@ TEST(RBTREE, LOWER_BOUND) {
     }
   }
 
+  ASSERT_EQ(m.lower_bound(kInsSize - 1), m.end());
   ASSERT_EQ(m.lower_bound(kInsSize), m.end());
 }
 
@@ -240,7 +241,7 @@ TEST(RBTREE, UPPER_BOUND) {
   RBtree<int, int> m;
   insert_sequence(m, 0, kInsSize, 2);
 
-  for (int i = 0; i < kInsSize; ++i) {
+  for (int i = 0; i < kInsSize - 2; ++i) {
     auto it = m.upper_bound(i);
     if (i % 2 == 0) {
       ASSERT_EQ(it->first, i + 2);
@@ -248,8 +249,122 @@ TEST(RBTREE, UPPER_BOUND) {
       ASSERT_EQ(it->first, i + 1);
     }
   }
-
+  ASSERT_EQ(m.upper_bound(kInsSize - 2), m.end());
+  ASSERT_EQ(m.upper_bound(kInsSize - 1), m.end());
   ASSERT_EQ(m.upper_bound(kInsSize), m.end());
+}
+
+TEST(RBTREE, EQUAL_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  ASSERT_TRUE(m1 == m2);
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  insert_sequence(m2, 0, kInsSize, 1);
+  ASSERT_TRUE(m1 == m2);
+
+  m1.insert({kInsSize, kInsSize});
+  ASSERT_FALSE(m1 == m2);
+}
+
+TEST(RBTREE, NOT_EQUAL_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  ASSERT_FALSE(m1 != m2);
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  insert_sequence(m2, 0, kInsSize, 1);
+  ASSERT_FALSE(m1 != m2);
+
+  m1.insert({kInsSize, kInsSize});
+  ASSERT_TRUE(m1 != m2);
+}
+
+TEST(RBTREE, LESS_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  ASSERT_TRUE(m2 < m1);
+  ASSERT_FALSE(m1 < m2);
+
+  RBtree<int, int> m3;
+  insert_sequence(m3, 0, kInsSize / 2, 1);
+  ASSERT_TRUE(m3 < m1);
+  ASSERT_FALSE(m1 < m3);
+}
+
+TEST(RBTREE, LESS_OR_EQUAL_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  ASSERT_TRUE(m2 <= m1);
+  ASSERT_FALSE(m1 <= m2);
+
+  RBtree<int, int> m3;
+  insert_sequence(m3, 0, kInsSize / 2, 1);
+  ASSERT_TRUE(m3 <= m1);
+  ASSERT_FALSE(m1 <= m3);
+
+  RBtree<int, int> m4;
+  insert_sequence(m4, 0, kInsSize, 1);
+  ASSERT_TRUE(m1 <= m4);
+  ASSERT_TRUE(m4 <= m1);
+}
+
+TEST(RBTREE, GREATER_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  ASSERT_TRUE(m1 > m2);
+  ASSERT_FALSE(m2 > m1);
+
+  RBtree<int, int> m3;
+  insert_sequence(m3, kInsSize / 2, kInsSize, 1);
+  ASSERT_TRUE(m3 > m1);
+  ASSERT_FALSE(m1 > m3);
+}
+
+TEST(RBTREE, GREATER_OR_EQUAL_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  ASSERT_TRUE(m1 >= m2);
+  ASSERT_FALSE(m2 >= m1);
+
+  RBtree<int, int> m3;
+  insert_sequence(m3, kInsSize / 2, kInsSize, 1);
+  ASSERT_TRUE(m3 >= m1);
+  ASSERT_FALSE(m1 >= m3);
+
+  RBtree<int, int> m4;
+  insert_sequence(m4, 0, kInsSize, 1);
+  ASSERT_TRUE(m1 >= m4);
+  ASSERT_TRUE(m4 >= m1);
+}
+
+TEST(RBTREE, SPACESHIP_OPERATOR) {
+  RBtree<int, int> m1;
+  RBtree<int, int> m2;
+
+  insert_sequence(m1, 0, kInsSize, 1);
+  ASSERT_TRUE((m2 <=> m1) < 0);
+  ASSERT_TRUE((m1 <=> m2) > 0);
+
+  RBtree<int, int> m3;
+  insert_sequence(m3, 0, kInsSize / 2, 1);
+  ASSERT_TRUE((m3 <=> m1) < 0);
+  ASSERT_TRUE((m1 <=> m3) > 0);
+
+  RBtree<int, int> m4;
+  insert_sequence(m4, 0, kInsSize, 1);
+  ASSERT_TRUE((m1 <=> m4) == 0);
+  ASSERT_TRUE((m4 <=> m1) == 0);
 }
 
 int main(int argc, char** argv) {

@@ -143,7 +143,7 @@ class RBtree {
   /*TODO: Complexity Constant*/
   iterator begin() noexcept {
     basic_node_type* most_left = root_;
-    while (most_left->left != &NIL_) {
+    while (!is_nil(most_left->left)) {
       most_left = most_left->left;
     }
     return construct_iterator(most_left);
@@ -221,53 +221,20 @@ class RBtree {
   }
 
   /*============================== Lookup =============================*/
-  /*TODO: избавится от копипаста*/
   iterator lower_bound(const key_type& key) {
-    basic_node_type* found = &NIL_;
-    basic_node_type* current = root_;
-
-    while (current != &NIL_) {
-      if (compare_greater_equal(current->get_key(), key)) {
-        found = current;
-        current = current->left;
-      } else {
-        current = current->right;
-      }
-    }
-
-    return construct_iterator(found);
+    return bound_impl<&RBtree::compare_greater_equal>(key);
   }
 
   iterator upper_bound(const key_type& key) {
-    basic_node_type* found = &NIL_;
-    basic_node_type* current = root_;
-
-    while (current != &NIL_) {
-      if (compare_greater(current->get_key(), key)) {
-        found = current;
-        current = current->left;
-      } else {
-        current = current->right;
-      }
-    }
-
-    return construct_iterator(found);
+    return bound_impl<&RBtree::compare_greater>(key);
   }
 
   iterator find(const key_type& key) {
-    basic_node_type* current = root_;
-
-    while (current != &NIL_) {
-      if (compare_greater(key, current->get_key())) {
-        current = current->right;
-      } else if (compare_less(key, current->get_key())) {
-        current = current->left;
-      } else {
-        return construct_iterator(current);
-      }
+    auto found = lower_bound(key);
+    if (found == end() || !compare_equal(key, found->first)) {
+      return end();
     }
-
-    return end();
+    return found;
   }
 
   const_iterator upper_bound(const key_type& key) const {
@@ -303,14 +270,21 @@ class RBtree {
   /*====================== Non-member functions =======================*/
   /*TODO: add test*/
   friend bool operator==(const RBtree& lhs, const RBtree& rhs) {
-    return std::lexicographical_compare_three_way(
-               lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_less) ==
-           std::strong_ordering::equal;
+    return (lhs <=> rhs) == 0;
   }
 
   friend auto operator<=>(const RBtree& lhs, const RBtree& rhs) {
     return std::lexicographical_compare_three_way(
-        lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_less);
+        lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+        [&](const auto& l, const auto& r) {
+          if (lhs.compare_less(l.first, r.first)) {
+            return std::strong_ordering::less;
+          }
+          if (lhs.compare_less(r.first, l.first)) {
+            return std::strong_ordering::greater;
+          }
+          return std::strong_ordering::equal;
+        });
   }
 
   friend void swap(const RBtree& lhs, const RBtree& rhs) { /*TODO code*/
@@ -321,37 +295,54 @@ class RBtree {
   size_type erase_if(RBtree& tree, Pred pred);
 
  private:
-  std::pair<iterator, bool> insert(basic_node_type* z) {
-    basic_node_type* y = &NIL_;
-    basic_node_type* x = root_;
+  template <bool (RBtree::*compare)(const key_type&, const key_type&) const>
+  iterator bound_impl(const key_type& key) {
+    basic_node_type* found = &NIL_;
+    basic_node_type* current = root_;
 
-    while (x != &NIL_) {
-      y = x;
-      if (compare_(x->get_key(), z->get_key())) {
-        x = x->right;
+    while (!is_nil(current)) {
+      if ((this->*compare)(current->get_key(), key)) {
+        found = current;
+        current = current->left;
       } else {
-        x = x->left;
+        current = current->right;
       }
     }
 
-    z->parent = y;
+    return construct_iterator(found);
+  }
 
-    if (y == &NIL_) {
-      update_root(z);
-    } else {
-      if (compare_less(y->get_key(), z->get_key())) {
-        y->right = z;
-      } else if (compare_greater(y->get_key(), z->get_key())) {
-        y->left = z;
+  std::pair<iterator, bool> insert(basic_node_type* new_node) {
+    basic_node_type* prev = &NIL_;
+    basic_node_type* current = root_;
+
+    while (!is_nil(current)) {
+      prev = current;
+      if (compare_less(current->get_key(), new_node->get_key())) {
+        current = current->right;
       } else {
-        annihilate(z);
+        current = current->left;
+      }
+    }
+
+    new_node->parent = prev;
+
+    if (is_nil(prev)) {
+      update_root(new_node);
+    } else {
+      if (compare_less(prev->get_key(), new_node->get_key())) {
+        prev->right = new_node;
+      } else if (compare_greater(prev->get_key(), new_node->get_key())) {
+        prev->left = new_node;
+      } else {
+        annihilate(new_node);
         return {end(), false};
       }
     }
 
     increase_size(1);
-    insert_fixup(z);
-    return {construct_iterator(z), true};
+    insert_fixup(new_node);
+    return {construct_iterator(new_node), true};
   }
 
   void insert_fixup(basic_node_type* current) noexcept {
@@ -406,7 +397,7 @@ class RBtree {
     child->parent = node->parent;
     node->parent = child;
 
-    if (child->parent == &NIL_) {
+    if (is_nil(child->parent)) {
       update_root(child);
     } else {
       if (child->parent->left == node) {
@@ -417,7 +408,7 @@ class RBtree {
     }
 
     node->*direction1 = child->*direction2;
-    if (node->*direction1 != &NIL_) {
+    if (!is_nil(node->*direction1)) {
       (node->*direction1)->parent = node;
     }
     child->*direction2 = node;
@@ -426,9 +417,9 @@ class RBtree {
   void clear_impl() noexcept {
     basic_node_type* current = root_;
 
-    while (current != &NIL_) {
-      while (current->left != &NIL_ || current->right != &NIL_) {
-        if (current->left != &NIL_) {
+    while (!is_nil(current)) {
+      while (!is_nil(current->left) || !is_nil(current->right)) {
+        if (!is_nil(current->left)) {
           current = current->left;
         } else {
           current = current->right;
