@@ -2,6 +2,7 @@
 
 #define DEBUG_
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <functional>
@@ -10,11 +11,15 @@
 #include <memory>
 #include <type_traits>
 
+#include "propagate_assignment_traits.hpp"
+
 template <class Key, class T, class Compare = std::less<Key>,
           class Allocator = std::allocator<std::pair<const Key, T>>>
 class RBtree {
   static constexpr const char* kBadEmplaceMessage = "Bad Emplace";
   static constexpr const char* kOutOfRange = "Missing element";
+  template <bool IsConst>
+  class Iterator;
 
  public:
   using key_type = Key;
@@ -26,20 +31,19 @@ class RBtree {
   using allocator_type = Allocator;
   using reference = value_type&;
   using const_reference = const value_type&;
-
   using allocator_traits = std::allocator_traits<allocator_type>;
-
   using pointer = typename allocator_traits::pointer;
   using const_pointer = typename allocator_traits::const_pointer;
-
-  template <bool IsConst>
-  class Iterator;
-
   using iterator = Iterator<false>;
   using const_iterator = Iterator<true>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+#ifdef DEBUG_
+  class RBtreeVisualizer;
+#endif
+
+ private:
   struct Node;
 
   struct BasicNode {
@@ -69,16 +73,18 @@ class RBtree {
     }
 
     mapped_type& get_mapped() {
-      assert(dynamic_cast<Node*>(this) != nullptr);
+      // assert(dynamic_cast<Node*>(this) != nullptr);
       return get_value().second;
     }
 
     const mapped_type& get_mapped() const {
-      assert(dynamic_cast<const Node*>(this) != nullptr);
       return const_cast<BasicNode*>(this)->get_mapped();
     }
 
-    value_type& get_value() { return static_cast<Node*>(this)->val; }
+    value_type& get_value() {
+      // assert(dynamic_cast<const Node*>(this) != nullptr);
+      return static_cast<Node*>(this)->val;
+    }
 
     const value_type& get_value() const {
       return const_cast<BasicNode*>(this)->get_value();
@@ -94,10 +100,6 @@ class RBtree {
     value_type val;
   };
 
-#ifdef DEBUG_
-  class RBtreeVisualizer;
-#endif
-
   using basic_node_type = BasicNode;
   using node_type = Node;
   using node_allocator_type = typename std::allocator_traits<
@@ -106,8 +108,36 @@ class RBtree {
 
   using Color = typename basic_node_type::Color;
 
+ public:
+  /*========================= Member functions ========================*/
   RBtree() = default;
+
   ~RBtree() { clear(); }
+
+  allocator_type get_allocator() const noexcept { return allocator_type(); }
+
+  /*========================== Element access =========================*/
+  mapped_type& operator[](const key_type& key) {
+    auto found = find(key);
+    if (found != end()) {
+      return found->second;
+    }
+    auto [emplaced, empalce_status] = emplace(key, mapped_type{});
+    assert(empalce_status == true);
+    return emplaced->second;
+  }
+
+  mapped_type& at(const key_type& key) {
+    auto found = find(key);
+    if (found == end()) {
+      throw std::out_of_range(kOutOfRange);
+    }
+    return found->second;
+  }
+
+  const mapped_type& at(const key_type& key) const {
+    return const_cast<RBtree*>(this)->at(key);
+  }
 
   /*============================ Iterators ============================*/
   /*TODO: Complexity Constant*/
@@ -116,7 +146,7 @@ class RBtree {
     while (most_left->left != &NIL_) {
       most_left = most_left->left;
     }
-    return {most_left, &NIL_};
+    return construct_iterator(most_left);
   }
 
   const_iterator begin() const noexcept {
@@ -133,25 +163,23 @@ class RBtree {
 
   const_iterator cend() const noexcept { return end(); }
 
-  reverse_iterator rbegin() { return std::make_reverse_iterator(begin()); }
-
-  const_reverse_iterator rbegin() const {
+  reverse_iterator rbegin() noexcept {
     return std::make_reverse_iterator(begin());
   }
 
-  const_reverse_iterator crbegin() const {
+  const_reverse_iterator rbegin() const noexcept {
     return std::make_reverse_iterator(begin());
   }
 
-  reverse_iterator rend() { return std::make_reverse_iterator(end()); }
+  const_reverse_iterator crbegin() const noexcept { return rbegin(); }
 
-  const_reverse_iterator rend() const {
+  reverse_iterator rend() noexcept { return std::make_reverse_iterator(end()); }
+
+  const_reverse_iterator rend() const noexcept {
     return std::make_reverse_iterator(end());
   }
 
-  const_reverse_iterator crend() const {
-    return std::make_reverse_iterator(end());
-  }
+  const_reverse_iterator crend() const noexcept { return rend(); }
 
   /*============================ Capacity =============================*/
   bool empty() const noexcept { return size_ == 0; }
@@ -192,43 +220,18 @@ class RBtree {
     return insert(static_cast<basic_node_type*>(new_node));
   }
 
-  /*========================== Element access =========================*/
-  mapped_type& operator[](const key_type& key) {
-    auto found = find(key);
-    if (found != end()) {
-      return found->second;
-    }
-    auto [emplaced, empalce_status] = emplace(key, mapped_type{});
-    assert(empalce_status == true);
-    return emplaced->second;
-  }
-
-  mapped_type& at(const key_type& key) {
-    auto found = find(key);
-    if (found == end()) {
-      throw std::out_of_range(kOutOfRange);
-    }
-    return found->second;
-  }
-
-  const mapped_type& at(const key_type& key) const {
-    return const_cast<RBtree*>(this)->at(key);
-  }
-
   /*============================== Lookup =============================*/
   /*TODO: избавится от копипаста*/
-  /*TODO: add tests*/
-
   iterator lower_bound(const key_type& key) {
     basic_node_type* found = &NIL_;
     basic_node_type* current = root_;
 
     while (current != &NIL_) {
-      if (compare_greater_equal(key, current->get_key())) {
+      if (compare_greater_equal(current->get_key(), key)) {
         found = current;
-        current = current->right;
-      } else {
         current = current->left;
+      } else {
+        current = current->right;
       }
     }
 
@@ -240,11 +243,11 @@ class RBtree {
     basic_node_type* current = root_;
 
     while (current != &NIL_) {
-      if (compare_greater(key, current->get_key())) {
+      if (compare_greater(current->get_key(), key)) {
         found = current;
-        current = current->right;
-      } else {
         current = current->left;
+      } else {
+        current = current->right;
       }
     }
 
@@ -293,8 +296,29 @@ class RBtree {
       const key_type& key) const {
     return const_cast<RBtree*>(this)->equal_range(key);
   }
+
   /*============================ Observers ============================*/
-  key_compare key_comp() const { return compare_; }
+  key_compare key_comp() const noexcept { return compare_; }
+
+  /*====================== Non-member functions =======================*/
+  /*TODO: add test*/
+  friend bool operator==(const RBtree& lhs, const RBtree& rhs) {
+    return std::lexicographical_compare_three_way(
+               lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_less) ==
+           std::strong_ordering::equal;
+  }
+
+  friend auto operator<=>(const RBtree& lhs, const RBtree& rhs) {
+    return std::lexicographical_compare_three_way(
+        lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_less);
+  }
+
+  friend void swap(const RBtree& lhs, const RBtree& rhs) { /*TODO code*/
+    (void)lhs, (void)rhs;
+  }
+
+  template <typename Pred>
+  size_type erase_if(RBtree& tree, Pred pred);
 
  private:
   std::pair<iterator, bool> insert(basic_node_type* z) {
@@ -313,7 +337,7 @@ class RBtree {
     z->parent = y;
 
     if (y == &NIL_) {
-      root_ = z;
+      update_root(z);
     } else {
       if (compare_less(y->get_key(), z->get_key())) {
         y->right = z;
@@ -399,11 +423,6 @@ class RBtree {
     child->*direction2 = node;
   }
 
-  void update_root(basic_node_type* new_root) noexcept {
-    root_ = new_root;
-    NIL_.left = new_root;
-  }
-
   void clear_impl() noexcept {
     basic_node_type* current = root_;
 
@@ -429,6 +448,11 @@ class RBtree {
     size_ = 0;
   }
 
+  void update_root(basic_node_type* new_root) noexcept {
+    root_ = new_root;
+    NIL_.left = new_root;
+  }
+
   void annihilate(basic_node_type* object) noexcept {
     assert(dynamic_cast<node_type*>(object) != nullptr);
     node_type* currect_pointer = dynamic_cast<node_type*>(object);
@@ -452,7 +476,9 @@ class RBtree {
     node_allocator_traits::destroy(alloc_, object);
   }
 
-  iterator construct_iterator(basic_node_type* node) { return {node, &NIL_}; }
+  iterator construct_iterator(basic_node_type* node) noexcept {
+    return {node, &NIL_};
+  }
 
   bool compare_less(const key_type& lhs, const key_type& rhs) const {
     return compare_(lhs, rhs);

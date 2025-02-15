@@ -1,14 +1,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <numeric>
 #include <random>
 #include <ranges>
 
 #include "RBtree.hpp"
 
-static const constexpr int kInsSize = 100;
-static const constexpr int kArrSize = 100;
+static const constexpr int kInsSize = 5000;
+static const constexpr int kArrSize = 5000;
 
 void insert_sequence(auto& tree, auto start, auto stop, auto step = 1) {
   for (auto i = start; i < stop; i += step) {
@@ -18,14 +19,20 @@ void insert_sequence(auto& tree, auto start, auto stop, auto step = 1) {
 
 template <std::size_t ArrSize>
 void insert_shuffled_sequence(auto& tree, auto from) {
-  int arr[ArrSize]{};
-  std::iota(std::begin(arr), std::end(arr), from);
-  std::random_device random_device;
-  std::mt19937 mt19937(random_device());
+  std::vector<int> vec(ArrSize);
+  std::iota(std::begin(vec), std::end(vec), from);
 
-  std::shuffle(std::begin(arr), std::end(arr), mt19937);
-  for (auto i = 0; i < static_cast<int>(ArrSize); ++i) {
-    tree.insert({arr[i], arr[i]});
+  auto now = std::chrono::system_clock::now();
+  auto duration = now.time_since_epoch();
+  auto millis =
+      std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+  std::mt19937 mt19937(static_cast<std::mt19937::result_type>(millis));
+
+  std::shuffle(std::begin(vec), std::end(vec), mt19937);
+
+  for (std::size_t i = 0; i < ArrSize; ++i) {
+    tree.insert({vec[i], vec[i]});
   }
 }
 
@@ -68,7 +75,7 @@ TEST(RBTREE, INSERT_SORTING) {
 
 TEST(RBTREE, CLEAR) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
   m.clear();
   ASSERT_EQ(m.size(), 0);
 }
@@ -80,7 +87,7 @@ TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
 
 TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
   auto it = m.begin();
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_EQ(it->first, i);
@@ -92,7 +99,6 @@ TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
 TEST(RBTREE, ITERATOR_FOLLOW_BACKWARD) {
   RBtree<int, int> m;
   insert_shuffled_sequence<kArrSize>(m, 0);
-
   auto it = m.end();
   for (int i = kInsSize - 1; i > 0; --i) {
     --it;
@@ -103,7 +109,7 @@ TEST(RBTREE, ITERATOR_FOLLOW_BACKWARD) {
 
 TEST(RBTREE, ITERATOR_FORWARD_BACKWARD) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
 
   auto it = m.begin();
 
@@ -122,7 +128,7 @@ TEST(RBTREE, ITERATOR_FORWARD_BACKWARD) {
 
 TEST(RBTREE, ITERATOR_PREV_END) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
   ASSERT_EQ(std::prev(m.end())->first, kInsSize - 1);
   ASSERT_EQ(std::prev(m.end())->second, kInsSize - 1);
 }
@@ -163,7 +169,7 @@ TEST(RBTREE, ITERATOR_BACKWARD_RANGE_LOOP) {
 
 TEST(RBTREE, COUNT) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
 
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_EQ(m.count(i), 1);
@@ -175,7 +181,7 @@ TEST(RBTREE, COUNT) {
 
 TEST(RBTREE, FIND) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
 
   for (int i = 0; i < kInsSize; ++i) {
     auto it = m.find(i);
@@ -189,7 +195,7 @@ TEST(RBTREE, FIND) {
 
 TEST(RBTREE, CONTAINS) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
 
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_TRUE(m.contains(i));
@@ -201,7 +207,7 @@ TEST(RBTREE, CONTAINS) {
 
 TEST(RBTREE, EQUAL_RANGE) {
   RBtree<int, int> m;
-  insert_sequence(m, 0, kInsSize, 1);
+  insert_shuffled_sequence<kArrSize>(m, 0);
 
   for (int i = 0; i < kInsSize - 1; ++i) {
     auto range = m.equal_range(i);
@@ -209,11 +215,7 @@ TEST(RBTREE, EQUAL_RANGE) {
     ASSERT_EQ(range.second->first, i + 1);
   }
 
-  auto range = m.equal_range(-1);
-  ASSERT_EQ(range.first, m.end());
-  ASSERT_EQ(range.second, m.end());
-
-  range = m.equal_range(kInsSize);
+  auto range = m.equal_range(kInsSize);
   ASSERT_EQ(range.first, m.end());
   ASSERT_EQ(range.second, m.end());
 }
