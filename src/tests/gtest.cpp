@@ -17,9 +17,8 @@ void insert_sequence(auto& tree, auto start, auto stop, auto step = 1) {
   }
 }
 
-template <std::size_t ArrSize>
-void insert_shuffled_sequence(auto& tree, auto from) {
-  std::vector<int> vec(ArrSize);
+void insert_shuffled_sequence(auto& tree, auto from, auto arrsize) {
+  std::vector<int> vec(static_cast<std::size_t>(arrsize));
   std::iota(std::begin(vec), std::end(vec), from);
 
   auto now = std::chrono::system_clock::now();
@@ -31,7 +30,7 @@ void insert_shuffled_sequence(auto& tree, auto from) {
 
   std::shuffle(std::begin(vec), std::end(vec), mt19937);
 
-  for (std::size_t i = 0; i < ArrSize; ++i) {
+  for (std::size_t i = 0; i < static_cast<std::size_t>(arrsize); ++i) {
     tree.insert({vec[i], vec[i]});
   }
 }
@@ -66,7 +65,7 @@ TEST(RBTREE, ELEMENT_ACCESS) {
 
 TEST(RBTREE, INSERT_SORTING) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   for (int i = 0; i < kArrSize; ++i) {
     ASSERT_EQ(m[i], i);
@@ -75,7 +74,7 @@ TEST(RBTREE, INSERT_SORTING) {
 
 TEST(RBTREE, CLEAR) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   m.clear();
   ASSERT_EQ(m.size(), 0);
 }
@@ -87,7 +86,7 @@ TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
 
 TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   auto it = m.begin();
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_EQ(it->first, i);
@@ -98,7 +97,7 @@ TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
 
 TEST(RBTREE, ITERATOR_FOLLOW_BACKWARD) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   auto it = m.end();
   for (int i = kInsSize - 1; i > 0; --i) {
     --it;
@@ -109,7 +108,7 @@ TEST(RBTREE, ITERATOR_FOLLOW_BACKWARD) {
 
 TEST(RBTREE, ITERATOR_FORWARD_BACKWARD) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   auto it = m.begin();
 
@@ -128,14 +127,14 @@ TEST(RBTREE, ITERATOR_FORWARD_BACKWARD) {
 
 TEST(RBTREE, ITERATOR_PREV_END) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   ASSERT_EQ(std::prev(m.end())->first, kInsSize - 1);
   ASSERT_EQ(std::prev(m.end())->second, kInsSize - 1);
 }
 
 TEST(RBTREE, ITERATOR_FORWARD_RANGE_LOOP) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   int i = 0;
   for (auto el : m) {
     ASSERT_EQ(el.first, i);
@@ -152,7 +151,7 @@ TEST(RBTREE, ITERATOR_FORWARD_RANGE_LOOP) {
 
 TEST(RBTREE, ITERATOR_BACKWARD_RANGE_LOOP) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
   int i = kArrSize;
   for (auto el : std::views::reverse(m)) {
     --i;
@@ -169,7 +168,7 @@ TEST(RBTREE, ITERATOR_BACKWARD_RANGE_LOOP) {
 
 TEST(RBTREE, COUNT) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_EQ(m.count(i), 1);
@@ -181,7 +180,7 @@ TEST(RBTREE, COUNT) {
 
 TEST(RBTREE, FIND) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   for (int i = 0; i < kInsSize; ++i) {
     auto it = m.find(i);
@@ -195,7 +194,7 @@ TEST(RBTREE, FIND) {
 
 TEST(RBTREE, CONTAINS) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_TRUE(m.contains(i));
@@ -207,7 +206,7 @@ TEST(RBTREE, CONTAINS) {
 
 TEST(RBTREE, EQUAL_RANGE) {
   RBtree<int, int> m;
-  insert_shuffled_sequence<kArrSize>(m, 0);
+  insert_shuffled_sequence(m, 0, kArrSize);
 
   for (int i = 0; i < kInsSize - 1; ++i) {
     auto range = m.equal_range(i);
@@ -365,6 +364,46 @@ TEST(RBTREE, SPACESHIP_OPERATOR) {
   insert_sequence(m4, 0, kInsSize, 1);
   ASSERT_TRUE((m1 <=> m4) == 0);
   ASSERT_TRUE((m4 <=> m1) == 0);
+}
+
+TEST(RBTREE, ERASE_SINGLE_ELEMENT) {
+  RBtree<int, int> tree;
+  insert_shuffled_sequence(tree, 0, kArrSize);
+  for (int i = 0; i < kArrSize; ++i) {
+    auto it = tree.find(i);
+    ASSERT_NE(it, tree.end());
+    tree.erase(it);
+    ASSERT_FALSE(tree.contains(i));
+    ASSERT_EQ(tree.size(), kArrSize - 1 - i);
+  }
+
+  ASSERT_TRUE(tree.empty());
+}
+
+TEST(RBTREE, ERASE_RANGE) {
+  const int kFirstBorder = 1000;
+  const int kLastBorder = 4000;
+
+  RBtree<int, int> tree;
+  insert_shuffled_sequence(tree, 0, kArrSize);
+
+  auto first = tree.find(kFirstBorder);
+  auto last = tree.find(kLastBorder);
+
+  tree.erase(first, last);
+
+  for (int i = kFirstBorder; i < kLastBorder; ++i) {
+    ASSERT_FALSE(tree.contains(i));
+  }
+
+  for (int i = 0; i < kFirstBorder; ++i) {
+    ASSERT_TRUE(tree.contains(i));
+  }
+  for (int i = kLastBorder; i < kArrSize; ++i) {
+    ASSERT_TRUE(tree.contains(i));
+  }
+
+  ASSERT_EQ(tree.size(), kArrSize - kLastBorder + kFirstBorder);
 }
 
 int main(int argc, char** argv) {

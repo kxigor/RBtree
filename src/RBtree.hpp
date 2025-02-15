@@ -67,22 +67,16 @@ class RBtree {
     bool is_red() const { return color == Color::Red; }
     bool is_black() const { return color == Color::Black; }
 
-    const key_type& get_key() const {
-      assert(dynamic_cast<const Node*>(this) != nullptr);
-      return get_value().first;
-    }
+    const key_type& get_key() const { return get_value().first; }
 
-    mapped_type& get_mapped() {
-      // assert(dynamic_cast<Node*>(this) != nullptr);
-      return get_value().second;
-    }
+    mapped_type& get_mapped() { return get_value().second; }
 
     const mapped_type& get_mapped() const {
       return const_cast<BasicNode*>(this)->get_mapped();
     }
 
     value_type& get_value() {
-      // assert(dynamic_cast<const Node*>(this) != nullptr);
+      assert(dynamic_cast<const Node*>(this) != nullptr);
       return static_cast<Node*>(this)->val;
     }
 
@@ -155,7 +149,7 @@ class RBtree {
 
   const_iterator cbegin() const noexcept { return begin(); }
 
-  iterator end() noexcept { return {&NIL_, &NIL_}; }
+  iterator end() noexcept { return construct_iterator(&NIL_); }
 
   const_iterator end() const noexcept {
     return const_cast<RBtree*>(this)->end();
@@ -193,16 +187,32 @@ class RBtree {
   /*============================ Modifiers ============================*/
   void clear() noexcept { clear_impl(); }
 
-  iterator erase(iterator pos) noexcept;
-  iterator erase(const_iterator pos) noexcept;
-  iterator erase(iterator first, iterator last) noexcept;
+  iterator erase(const_iterator pos) noexcept {
+    iterator next = std::next(pos);
+    erase(pos.current_node_);
+    return next;
+  }
 
-  // template <class P>
-  // std::pair<iterator, bool> insert(P&& value) {
-  //   node_type* new_node = allocate();
-  //   construct(new_node, std::forward<P>(value));
-  //   return insert(static_cast<basic_node_type*>(new_node));
-  // }
+  iterator erase(const_iterator first, const_iterator last) noexcept {
+    const_iterator current = first;
+    const_iterator next;
+
+    while (current != last) {
+      next = std::next(current);
+      erase(current);
+      current = next;
+    }
+    return current;
+  }
+
+  size_type erase(const key_type& key) {
+    auto pos = find(key);
+    if (pos == end()) {
+      return 0;
+    }
+    erase(pos);
+    return 1;
+  }
 
   std::pair<iterator, bool> insert(value_type&& value) {
     node_type* new_node = allocate();
@@ -268,11 +278,10 @@ class RBtree {
   key_compare key_comp() const noexcept { return compare_; }
 
   /*====================== Non-member functions =======================*/
-  /*TODO: add test*/
   friend bool operator==(const RBtree& lhs, const RBtree& rhs) {
     return (lhs <=> rhs) == 0;
   }
-
+  /*TODO: improve codestyle*/
   friend auto operator<=>(const RBtree& lhs, const RBtree& rhs) {
     return std::lexicographical_compare_three_way(
         lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
@@ -287,10 +296,12 @@ class RBtree {
         });
   }
 
-  friend void swap(const RBtree& lhs, const RBtree& rhs) { /*TODO code*/
+  /*TODO code*/
+  friend void swap(const RBtree& lhs, const RBtree& rhs) {
     (void)lhs, (void)rhs;
   }
 
+  /*TODO code*/
   template <typename Pred>
   size_type erase_if(RBtree& tree, Pred pred);
 
@@ -312,6 +323,7 @@ class RBtree {
     return construct_iterator(found);
   }
 
+  /*TODO: improve codestyle*/
   std::pair<iterator, bool> insert(basic_node_type* new_node) {
     basic_node_type* prev = &NIL_;
     basic_node_type* current = root_;
@@ -389,6 +401,121 @@ class RBtree {
     return current;
   }
 
+  void erase(basic_node_type* delete_node) noexcept {
+    basic_node_type* instead_node = nullptr;
+    basic_node_type* restored_node = nullptr;
+    if (is_nil(delete_node->left) || is_nil(delete_node->right)) {
+      instead_node = delete_node;
+    } else {
+      instead_node = get_minimum(delete_node->right);
+    }
+
+    if (!is_nil(instead_node->left)) {
+      restored_node = instead_node->left;
+    } else {
+      restored_node = instead_node->right;
+    }
+
+    restored_node->parent = instead_node->parent;
+
+    if (is_nil(delete_node->parent)) {
+      update_root(instead_node);
+    }
+
+    if (is_nil(instead_node->parent)) {
+      update_root(restored_node);
+    } else {
+      if (instead_node->is_left()) {
+        instead_node->parent->left = restored_node;
+      } else {
+        instead_node->parent->right = restored_node;
+      }
+    }
+
+    if (instead_node != delete_node) {
+      if (delete_node->is_left()) {
+        delete_node->parent->left = instead_node;
+      } else {
+        delete_node->parent->right = instead_node;
+      }
+      instead_node->parent = delete_node->parent;
+      instead_node->left = delete_node->left;
+      instead_node->right = delete_node->right;
+      instead_node->left->parent = instead_node;
+      instead_node->right->parent = instead_node;
+    }
+
+    if (instead_node->is_black()) {
+      erase_fixup(restored_node);
+    }
+
+    annihilate(delete_node);
+    decrease_size(1);
+  }
+
+  basic_node_type* get_minimum(basic_node_type* current) {
+    while (!is_nil(current->left)) {
+      current = current->left;
+    }
+    return current;
+  }
+
+  void erase_fixup(basic_node_type* restored_node) noexcept {
+    while (restored_node != root_ && restored_node->is_black()) {
+      if (restored_node->is_left()) {
+        restored_node = erase_fixup_left_case(restored_node);
+      } else {
+        restored_node = erase_fixup_right_case(restored_node);
+      }
+    }
+    restored_node->color = Color::Black;
+  }
+
+  basic_node_type* erase_fixup_left_case(
+      basic_node_type* restored_node) noexcept {
+    return erase_fixup_impl<&basic_node_type::left, &basic_node_type::right>(
+        restored_node);
+  }
+
+  basic_node_type* erase_fixup_right_case(
+      basic_node_type* restored_node) noexcept {
+    return erase_fixup_impl<&basic_node_type::right, &basic_node_type::left>(
+        restored_node);
+  }
+
+  template <basic_node_type* basic_node_type::*direction1,
+            basic_node_type* basic_node_type::*direction2>
+  basic_node_type* erase_fixup_impl(basic_node_type* current) noexcept {
+    basic_node_type* parent = current->parent;
+    basic_node_type* brother = parent->*direction2;
+    if (brother->is_red()) {
+      brother->color = Color::Black;
+      parent->color = Color::Red;
+      rotate_impl<direction2, direction1>(parent);
+      brother = parent->*direction2;
+    }
+    if ((brother->*direction1)->is_black() &&
+        (brother->*direction2)->is_black()) {
+      brother->color = Color::Red;
+      current = parent;
+    } else {
+      if ((brother->*direction2)->is_black()) {
+        (brother->*direction1)->color = Color::Black;
+        brother->color = Color::Red;
+        rotate_impl<direction1, direction2>(brother);
+        brother = parent->*direction2;
+      }
+      brother->color = parent->color;
+      parent->color = Color::Black;
+      (brother->*direction2)->color = Color::Black;
+      rotate_impl<direction2, direction1>(parent);
+      current = root_;
+    }
+    return current;
+  }
+
+  /*TODO improve naming*/
+  /*right, left - left_rotate, left, right - right_rotate*/
   template <basic_node_type* basic_node_type::*direction1,
             basic_node_type* basic_node_type::*direction2>
   void rotate_impl(basic_node_type* node) noexcept {
@@ -586,6 +713,12 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   }
 
  private:
+  friend RBtree;
+
+  operator Iterator<false>() const {
+    return Iterator<false>(current_node_, NIL_);
+  }
+
   void slide_left_fully() {
     while (current_node_->left != NIL_) {
       current_node_ = current_node_->left;
