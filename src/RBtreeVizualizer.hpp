@@ -1,9 +1,9 @@
-#include <iostream>
-#include <fstream>
 #include <cassert>
-#include <string>
-#include <memory>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <string>
 
 template <class Key, class T, class Compare, class Allocator>
 class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
@@ -12,12 +12,20 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     std::ofstream file("graph.dot");
     assert(file.is_open());
 
-    // Настройка графа
     file << "digraph G {\n";
     file << "  rankdir=TB;\n";
     file << "  nodesep=0.5;\n";
     file << "  ranksep=0.5;\n";
-    file << "  node [shape=circle, style=filled, fixedsize=true, width=1.0];\n";
+    file << "  node [shape=circle, style=filled];\n";
+
+    file << "  labelloc=\"t\";\n";
+    file << "  label=<<table border=\"1\" cellborder=\"0\" cellspacing=\"0\" "
+            "cellpadding=\"4\">\n";
+    file << "    <tr><td border=\"1\" bgcolor=\"black\">\n";
+    file << "      <font color=\"white\" point-size=\"20\"><b>Red-Black tree "
+            "by KXI</b></font>\n";
+    file << "    </td></tr>\n";
+    file << "  </table>>;\n";
 
     GenGraphRecRB(tree, tree.root_, file);
 
@@ -44,25 +52,25 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     std::string node_color = node->is_red() ? "red" : "black";
     std::string font_color = node->is_red() ? "white" : "white";
 
-    file << "  node" << node_ptr << " [label=\"" << node->get_key() 
-         << "\", fillcolor=" << node_color 
+    file << "  node" << node_ptr << " [label=\"key:" << node->get_key()
+         << "\nmapped:" << node->get_mapped() << "\", fillcolor=" << node_color
          << ", fontcolor=" << font_color << "];\n";
 
-    if (!tree.is_nil(node->parent)) {
-      file << "  node" << node_ptr << " -> node" << parent_ptr 
-           << " [color=blue];\n";
-    }
-
     if (!tree.is_nil(node->left)) {
-      file << "  node" << node_ptr << " -> node" << left_ptr 
-           << " [color=green];\n";
+      file << "  node" << node_ptr << " -> node" << left_ptr
+           << " [color=green, label=\"left\", labelfloat=true];\n";
       GenGraphRecRB(tree, node->left, file);
     }
 
     if (!tree.is_nil(node->right)) {
-      file << "  node" << node_ptr << " -> node" << right_ptr 
-           << " [color=red];\n";
+      file << "  node" << node_ptr << " -> node" << right_ptr
+           << " [color=red, label=\"right\", labelfloat=true];\n";
       GenGraphRecRB(tree, node->right, file);
+    }
+
+    if (!tree.is_nil(node->parent)) {
+      file << "  node" << node_ptr << " -> node" << parent_ptr
+           << " [color=blue];\n";
     }
   }
 };

@@ -42,7 +42,7 @@ enable_testing()
 find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
 
-set(SRCS_TESTS src/tests/gtest.cpp)
+set(SRCS_TESTS src/tests/GoogleUnitTests.cpp)
 add_executable(tests ${SRCS_TESTS})
 
 target_include_directories(tests SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})

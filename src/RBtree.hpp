@@ -11,7 +11,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "propagate_assignment_traits.hpp"
+#include "PropagateAssignmentTraits.hpp"
 
 template <class Key, class T, class Compare = std::less<Key>,
           class Allocator = std::allocator<std::pair<const Key, T>>>
