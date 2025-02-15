@@ -6,12 +6,12 @@ build() {
 }
 
 clean_build() {
-    make -C build clean > /dev/null
+    make -C build clean >/dev/null
 }
 
 erase_build() {
     clean_build
-    rm -rf build > /dev/null
+    rm -rf build >/dev/null
 }
 
 if [ "$1" == "erase" ]; then

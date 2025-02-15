@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLANGTIDY="clang-tidy-15 -p build/ -extra-arg=-Wno-unknown-warning-option -extra-arg=-Wno-unused-command-line-argument -extra-arg=-Wno-invalid-command-line-argument" 
+CLANGTIDY="clang-tidy-15 -p build/ -extra-arg=-Wno-unknown-warning-option -extra-arg=-Wno-unused-command-line-argument -extra-arg=-Wno-invalid-command-line-argument"
 CLANGTIDYAGRS="--quiet"
 
 exit_status=0
@@ -14,9 +14,8 @@ for file in "$@"; do
 
     $CLANGTIDY "${CLANGTIDYAGRS[@]}" "$file"
 
-    if [[ ! $? -eq 0 ]]
-    then 
-      exit_status=1
+    if [[ ! $? -eq 0 ]]; then
+        exit_status=1
     fi
 
 done

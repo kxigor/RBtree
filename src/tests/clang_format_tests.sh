@@ -12,9 +12,9 @@ for file in "$@"; do
         continue
     fi
 
-    $CLANGFORMAT "${CLANGFORMATARGS[@]}" "$file" > temp.format
+    $CLANGFORMAT "${CLANGFORMATARGS[@]}" "$file" >temp.format
 
-    if ! diff -q "$file" temp.format > /dev/null; then
+    if ! diff -q "$file" temp.format >/dev/null; then
         echo "Файлы $file не отформатирован:"
         diff "$file" temp.format
         exit_status=1
