@@ -18,6 +18,7 @@ template <class Key, class T, class Compare = std::less<Key>,
 class RBtree {
   static constexpr const char* kBadEmplaceMessage = "Bad Emplace";
   static constexpr const char* kOutOfRange = "Missing element";
+
   template <bool IsConst>
   class Iterator;
 
@@ -214,12 +215,44 @@ class RBtree {
     return 1;
   }
 
+  std::pair<iterator, bool> insert(const value_type& value) {
+    return emplace(value);
+  }
+
+  template <class P>
+  std::pair<iterator, bool> insert(P&& value) {
+    return emplace(std::move(value));
+  }
+
   std::pair<iterator, bool> insert(value_type&& value) {
-    node_type* new_node = allocate();
-    construct(new_node, &NIL_, &NIL_, &NIL_, Color::Red,
-              std::move(const_cast<key_type&>(value.first)),
-              std::move(value.second));
-    return insert(static_cast<basic_node_type*>(new_node));
+    return emplace(std::move(const_cast<key_type&>(value.first)),
+                   std::move(value.second));
+  }
+
+  template <class InputIt>
+  void insert(InputIt first, InputIt last) {
+    using iterator_allocator_type = typename std::allocator_traits<
+        allocator_type>::template rebind_alloc<iterator>;
+    std::vector<iterator, iterator_allocator_type> inserted;
+    while (first != last) {
+      try {
+        auto [pos, is_inserted] = insert(*first);
+        if (is_inserted) {
+          try {
+            inserted.push_back(pos);
+          } catch (...) {
+            erase(pos);
+            throw;
+          }
+        }
+        ++first;
+      } catch (...) {
+        for (auto pos : inserted) {
+          erase(pos);
+        }
+        throw;
+      }
+    }
   }
 
   template <class... Args>
@@ -228,6 +261,15 @@ class RBtree {
     construct(new_node, &NIL_, &NIL_, &NIL_, Color::Red,
               std::forward<Args>(args)...);
     return insert(static_cast<basic_node_type*>(new_node));
+  }
+
+  template <class... Args>
+  std::pair<iterator, bool> try_emplace(const key_type& k, Args&&... args) {
+    auto found = find(k);
+    if (found == end()) {
+      return {found, false};
+    }
+    return emplace(k, std::forward<Args>(args)...);
   }
 
   /*============================== Lookup =============================*/
