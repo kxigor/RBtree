@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "PropagateAssignmentTraits.hpp"
 
@@ -229,32 +230,6 @@ class RBtree {
                    std::move(value.second));
   }
 
-  template <class InputIt>
-  void insert(InputIt first, InputIt last) {
-    using iterator_allocator_type = typename std::allocator_traits<
-        allocator_type>::template rebind_alloc<iterator>;
-    std::vector<iterator, iterator_allocator_type> inserted;
-    while (first != last) {
-      try {
-        auto [pos, is_inserted] = insert(*first);
-        if (is_inserted) {
-          try {
-            inserted.push_back(pos);
-          } catch (...) {
-            erase(pos);
-            throw;
-          }
-        }
-        ++first;
-      } catch (...) {
-        for (auto pos : inserted) {
-          erase(pos);
-        }
-        throw;
-      }
-    }
-  }
-
   template <class... Args>
   std::pair<iterator, bool> emplace(Args&&... args) {
     node_type* new_node = allocate();
@@ -343,9 +318,24 @@ class RBtree {
     (void)lhs, (void)rhs;
   }
 
-  /*TODO code*/
+  /*TODO tests*/
   template <typename Pred>
-  size_type erase_if(RBtree& tree, Pred pred);
+  friend size_type erase_if(RBtree& tree, Pred pred) noexcept {
+    RBtree::size_type result = 0;
+    iterator current = tree.begin();
+    iterator next;
+    iterator last = tree.end();
+    while (current != last) {
+      next = std::next(current);
+      static_assert(noexcept(pred(*current)));
+      if (pred(*current)) {
+        tree.erase(current);
+        ++result;
+      }
+      current = next;
+    }
+    return result;
+  }
 
  private:
   template <bool (RBtree::*compare)(const key_type&, const key_type&) const>
@@ -701,40 +691,18 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   Iterator& operator=(const Iterator& /*unused*/) = default;
 
   Iterator& operator++() {
-    if (current_node_->right != NIL_) {
-      current_node_ = current_node_->right;
-      slide_left_fully();
-      return *this;
-    }
-
-    slide_up_while_not_left();
-
-    return *this;
-  }
-
-  Iterator operator++(int) {
-    Iterator result = *this;
-    ++*this;
-    return result;
+    return operator_unary_step_impl<&basic_node_type::left,
+                                    &basic_node_type::right>();
   }
 
   Iterator& operator--() {
-    if (current_node_->left != NIL_) {
-      current_node_ = current_node_->left;
-      slide_right_fully();
-      return *this;
-    }
-
-    slide_up_while_not_right();
-
-    return *this;
+    return operator_unary_step_impl<&basic_node_type::right,
+                                    &basic_node_type::left>();
   }
 
-  Iterator operator--(int) {
-    Iterator result = *this;
-    --*this;
-    return result;
-  }
+  Iterator operator++(int) { return std::exchange(*this, ++Iterator(*this)); }
+
+  Iterator operator--(int) { return std::exchange(*this, --Iterator(*this)); }
 
   reference operator*() const {
     return const_cast<reference>(current_node_->get_value());
@@ -761,45 +729,33 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
     return Iterator<false>(current_node_, NIL_);
   }
 
-  void slide_left_fully() {
-    while (current_node_->left != NIL_) {
-      current_node_ = current_node_->left;
+  template <basic_node_type* basic_node_type::*direction1,
+            basic_node_type* basic_node_type::*direction2>
+  Iterator& operator_unary_step_impl() {
+    if (current_node_->*direction2 != NIL_) {
+      current_node_ = current_node_->*direction2;
+      slide_fully_impl<direction1>();
+      return *this;
+    }
+    slide_up_while_not_impl<direction2>();
+    return *this;
+  }
+
+  template <basic_node_type* basic_node_type::*direction>
+  void slide_fully_impl() {
+    while (current_node_->*direction != NIL_) {
+      current_node_ = current_node_->*direction;
     }
   }
 
-  void slide_right_fully() {
-    while (current_node_->right != NIL_) {
-      current_node_ = current_node_->right;
-    }
-  }
-
-  void slide_up_while_not_left() {
-    basic_node_type* prev_node = nullptr;
-    while (current_node_->is_right() && !is_root()) {
-      prev_node = current_node_;
+  template <basic_node_type* basic_node_type::*direction>
+  void slide_up_while_not_impl() {
+    while (current_node_->parent->*direction == current_node_ &&
+           current_node_ != NIL_) {
       current_node_ = current_node_->parent;
     }
-    prev_node = current_node_;
     current_node_ = current_node_->parent;
-    if (current_node_->right == prev_node && is_root()) {
-      current_node_ = NIL_;
-    }
   }
-
-  void slide_up_while_not_right() {
-    basic_node_type* prev_node = nullptr;
-    while (current_node_->is_left() && !is_root()) {
-      prev_node = current_node_;
-      current_node_ = current_node_->parent;
-    }
-    prev_node = current_node_;
-    current_node_ = current_node_->parent;
-    if (current_node_->left == prev_node && is_root()) {
-      current_node_ = NIL_;
-    }
-  }
-
-  bool is_root() { return current_node_->parent == NIL_; }
 
   /*================================ Fields ================================*/
   basic_node_type* current_node_{nullptr};
