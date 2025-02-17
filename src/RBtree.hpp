@@ -85,6 +85,12 @@ class RBtree {
     const value_type& get_value() const {
       return const_cast<BasicNode*>(this)->get_value();
     }
+
+    static constexpr BasicNode* BasicNode::*another_direction(
+        BasicNode* BasicNode::*direction) {
+      return (direction == &BasicNode::left) ? &BasicNode::right
+                                             : &BasicNode::left;
+    }
   };
 
   struct Node : BasicNode {
@@ -320,14 +326,15 @@ class RBtree {
 
   /*TODO tests*/
   template <typename Pred>
+  requires std::is_nothrow_invocable_r_v<bool, Pred,
+                                         typename RBtree::value_type>
   friend size_type erase_if(RBtree& tree, Pred pred) noexcept {
     RBtree::size_type result = 0;
     iterator current = tree.begin();
-    iterator next;
     iterator last = tree.end();
+    iterator next;
     while (current != last) {
       next = std::next(current);
-      static_assert(noexcept(pred(*current)));
       if (pred(*current)) {
         tree.erase(current);
         ++result;
@@ -392,43 +399,34 @@ class RBtree {
   void insert_fixup(basic_node_type* current) noexcept {
     while (current->parent->is_red()) {
       if (current->parent->is_left()) {
-        current = insert_fixup_left_case(current);
+        current = insert_fixup_impl<&basic_node_type::left>(current);
       } else /*if (current->parent->is_right())*/ {
-        current = insert_fixup_right_case(current);
+        current = insert_fixup_impl<&basic_node_type::right>(current);
       }
     }
     root_->color = Color::Black;
   }
 
-  basic_node_type* insert_fixup_left_case(basic_node_type* current) noexcept {
-    return insert_fixup_impl<&basic_node_type::left, &basic_node_type::right>(
-        current);
-  }
-
-  basic_node_type* insert_fixup_right_case(basic_node_type* current) noexcept {
-    return insert_fixup_impl<&basic_node_type::right, &basic_node_type::left>(
-        current);
-  }
-
-  template <basic_node_type* basic_node_type::*direction1,
-            basic_node_type* basic_node_type::*direction2>
+  template <basic_node_type* basic_node_type::*direction,
+            basic_node_type* basic_node_type::*another_direction =
+                basic_node_type::another_direction(direction)>
   basic_node_type* insert_fixup_impl(basic_node_type* current) noexcept {
     basic_node_type* parent = current->parent;
     basic_node_type* grandparent = parent->parent;
-    basic_node_type* uncle = grandparent->*direction2;
+    basic_node_type* uncle = grandparent->*another_direction;
     if (uncle->is_red()) {
       parent->color = Color::Black;
       uncle->color = Color::Black;
       grandparent->color = Color::Red;
       current = grandparent;
     } else {
-      if (current == parent->*direction2) {
-        rotate_impl<direction2, direction1>(parent);
+      if (current == parent->*another_direction) {
+        rotate_impl<direction>(parent);
         std::swap(parent, current);
       }
       parent->color = Color::Black;
       grandparent->color = Color::Red;
-      rotate_impl<direction1, direction2>(grandparent);
+      rotate_impl<another_direction>(grandparent);
     }
     return current;
   }
@@ -495,63 +493,52 @@ class RBtree {
   void erase_fixup(basic_node_type* restored_node) noexcept {
     while (restored_node != root_ && restored_node->is_black()) {
       if (restored_node->is_left()) {
-        restored_node = erase_fixup_left_case(restored_node);
+        restored_node = erase_fixup_impl<&basic_node_type::left>(restored_node);
       } else {
-        restored_node = erase_fixup_right_case(restored_node);
+        restored_node =
+            erase_fixup_impl<&basic_node_type::right>(restored_node);
       }
     }
     restored_node->color = Color::Black;
   }
 
-  basic_node_type* erase_fixup_left_case(
-      basic_node_type* restored_node) noexcept {
-    return erase_fixup_impl<&basic_node_type::left, &basic_node_type::right>(
-        restored_node);
-  }
-
-  basic_node_type* erase_fixup_right_case(
-      basic_node_type* restored_node) noexcept {
-    return erase_fixup_impl<&basic_node_type::right, &basic_node_type::left>(
-        restored_node);
-  }
-
-  template <basic_node_type* basic_node_type::*direction1,
-            basic_node_type* basic_node_type::*direction2>
+  template <basic_node_type* basic_node_type::*direction,
+            basic_node_type* basic_node_type::*another_direction =
+                basic_node_type::another_direction(direction)>
   basic_node_type* erase_fixup_impl(basic_node_type* current) noexcept {
     basic_node_type* parent = current->parent;
-    basic_node_type* brother = parent->*direction2;
+    basic_node_type* brother = parent->*another_direction;
     if (brother->is_red()) {
       brother->color = Color::Black;
       parent->color = Color::Red;
-      rotate_impl<direction2, direction1>(parent);
-      brother = parent->*direction2;
+      rotate_impl<direction>(parent);
+      brother = parent->*another_direction;
     }
-    if ((brother->*direction1)->is_black() &&
-        (brother->*direction2)->is_black()) {
+    if ((brother->*direction)->is_black() &&
+        (brother->*another_direction)->is_black()) {
       brother->color = Color::Red;
       current = parent;
     } else {
-      if ((brother->*direction2)->is_black()) {
-        (brother->*direction1)->color = Color::Black;
+      if ((brother->*another_direction)->is_black()) {
+        (brother->*direction)->color = Color::Black;
         brother->color = Color::Red;
-        rotate_impl<direction1, direction2>(brother);
-        brother = parent->*direction2;
+        rotate_impl<another_direction>(brother);
+        brother = parent->*another_direction;
       }
       brother->color = parent->color;
       parent->color = Color::Black;
-      (brother->*direction2)->color = Color::Black;
-      rotate_impl<direction2, direction1>(parent);
+      (brother->*another_direction)->color = Color::Black;
+      rotate_impl<direction>(parent);
       current = root_;
     }
     return current;
   }
 
-  /*TODO improve naming*/
-  /*right, left - left_rotate, left, right - right_rotate*/
-  template <basic_node_type* basic_node_type::*direction1,
-            basic_node_type* basic_node_type::*direction2>
+  template <basic_node_type* basic_node_type::*direction,
+            basic_node_type* basic_node_type::*another_direction =
+                basic_node_type::another_direction(direction)>
   void rotate_impl(basic_node_type* node) noexcept {
-    basic_node_type* child = node->*direction1;
+    basic_node_type* child = node->*another_direction;
 
     child->parent = node->parent;
     node->parent = child;
@@ -566,11 +553,11 @@ class RBtree {
       }
     }
 
-    node->*direction1 = child->*direction2;
-    if (!is_nil(node->*direction1)) {
-      (node->*direction1)->parent = node;
+    node->*another_direction = child->*direction;
+    if (!is_nil(node->*another_direction)) {
+      (node->*another_direction)->parent = node;
     }
-    child->*direction2 = node;
+    child->*direction = node;
   }
 
   void clear_impl() noexcept {
@@ -691,13 +678,11 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   Iterator& operator=(const Iterator& /*unused*/) = default;
 
   Iterator& operator++() {
-    return operator_unary_step_impl<&basic_node_type::left,
-                                    &basic_node_type::right>();
+    return operator_unary_step_impl<&basic_node_type::left>();
   }
 
   Iterator& operator--() {
-    return operator_unary_step_impl<&basic_node_type::right,
-                                    &basic_node_type::left>();
+    return operator_unary_step_impl<&basic_node_type::right>();
   }
 
   Iterator operator++(int) {
@@ -737,15 +722,16 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
     return Iterator<false>(current_node_, NIL_);
   }
 
-  template <basic_node_type* basic_node_type::*direction1,
-            basic_node_type* basic_node_type::*direction2>
+  template <basic_node_type* basic_node_type::*direction,
+            basic_node_type* basic_node_type::*another_direction =
+                basic_node_type::another_direction(direction)>
   Iterator& operator_unary_step_impl() {
-    if (current_node_->*direction2 != NIL_) {
-      current_node_ = current_node_->*direction2;
-      slide_fully_impl<direction1>();
+    if (current_node_->*another_direction != NIL_) {
+      current_node_ = current_node_->*another_direction;
+      slide_fully_impl<direction>();
       return *this;
     }
-    slide_up_while_not_impl<direction2>();
+    slide_up_while_not_impl<another_direction>();
     return *this;
   }
 
