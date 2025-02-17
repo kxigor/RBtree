@@ -700,9 +700,17 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
                                     &basic_node_type::left>();
   }
 
-  Iterator operator++(int) { return std::exchange(*this, ++Iterator(*this)); }
+  Iterator operator++(int) {
+    Iterator result = *this;
+    ++*this;
+    return result;
+  }
 
-  Iterator operator--(int) { return std::exchange(*this, --Iterator(*this)); }
+  Iterator operator--(int) {
+    Iterator result = *this;
+    --*this;
+    return result;
+  }
 
   reference operator*() const {
     return const_cast<reference>(current_node_->get_value());
