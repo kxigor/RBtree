@@ -45,7 +45,7 @@ find_package(GTest REQUIRED)
 set(SRCS_TESTS src/tests/GoogleUnitTests.cpp)
 add_executable(tests ${SRCS_TESTS})
 
-target_include_directories(tests SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})
+target_include_directories(tests SYSTEM PUBLIC  Threads::Threads ${GTEST_INCLUDE_DIRS})
 set_property(TARGET tests PROPERTY RUNTIME_OUTPUT_DIRECTORY "")
 
 target_link_libraries(tests ${GTEST_LIBRARIES})

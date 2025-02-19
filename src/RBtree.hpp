@@ -86,8 +86,8 @@ class RBtree {
       return const_cast<BasicNode*>(this)->get_value();
     }
 
-    static constexpr BasicNode* BasicNode::*another_direction(
-        BasicNode* BasicNode::*direction) {
+    static constexpr BasicNode* BasicNode::* another_direction(
+        BasicNode* BasicNode::* direction) {
       return (direction == &BasicNode::left) ? &BasicNode::right
                                              : &BasicNode::left;
     }
@@ -326,8 +326,8 @@ class RBtree {
 
   /*TODO tests*/
   template <typename Pred>
-  requires std::is_nothrow_invocable_r_v<bool, Pred,
-                                         typename RBtree::value_type>
+    requires std::is_nothrow_invocable_r_v<bool, Pred,
+                                           typename RBtree::value_type>
   friend size_type erase_if(RBtree& tree, Pred pred) noexcept {
     RBtree::size_type result = 0;
     iterator current = tree.begin();
@@ -407,8 +407,8 @@ class RBtree {
     root_->color = Color::Black;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
+  template <basic_node_type* basic_node_type::* direction,
+            basic_node_type* basic_node_type::* another_direction =
                 basic_node_type::another_direction(direction)>
   basic_node_type* insert_fixup_impl(basic_node_type* current) noexcept {
     basic_node_type* parent = current->parent;
@@ -455,19 +455,11 @@ class RBtree {
     if (is_nil(instead_node->parent)) {
       update_root(restored_node);
     } else {
-      if (instead_node->is_left()) {
-        instead_node->parent->left = restored_node;
-      } else {
-        instead_node->parent->right = restored_node;
-      }
+      replace_child_in_parent(instead_node, restored_node);
     }
 
     if (instead_node != delete_node) {
-      if (delete_node->is_left()) {
-        delete_node->parent->left = instead_node;
-      } else {
-        delete_node->parent->right = instead_node;
-      }
+      replace_child_in_parent(delete_node, instead_node);
       instead_node->parent = delete_node->parent;
       instead_node->left = delete_node->left;
       instead_node->right = delete_node->right;
@@ -481,6 +473,15 @@ class RBtree {
 
     annihilate(delete_node);
     decrease_size(1);
+  }
+
+  void replace_child_in_parent(basic_node_type* current,
+                               basic_node_type* new_child) {
+    if (current->is_left()) {
+      current->parent->left = new_child;
+    } else {
+      current->parent->right = new_child;
+    }
   }
 
   basic_node_type* get_minimum(basic_node_type* current) {
@@ -502,8 +503,8 @@ class RBtree {
     restored_node->color = Color::Black;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
+  template <basic_node_type* basic_node_type::* direction,
+            basic_node_type* basic_node_type::* another_direction =
                 basic_node_type::another_direction(direction)>
   basic_node_type* erase_fixup_impl(basic_node_type* current) noexcept {
     basic_node_type* parent = current->parent;
@@ -534,8 +535,8 @@ class RBtree {
     return current;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
+  template <basic_node_type* basic_node_type::* direction,
+            basic_node_type* basic_node_type::* another_direction =
                 basic_node_type::another_direction(direction)>
   void rotate_impl(basic_node_type* node) noexcept {
     basic_node_type* child = node->*another_direction;
@@ -722,8 +723,8 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
     return Iterator<false>(current_node_, NIL_);
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
+  template <basic_node_type* basic_node_type::* direction,
+            basic_node_type* basic_node_type::* another_direction =
                 basic_node_type::another_direction(direction)>
   Iterator& operator_unary_step_impl() {
     if (current_node_->*another_direction != NIL_) {
@@ -735,14 +736,14 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
     return *this;
   }
 
-  template <basic_node_type* basic_node_type::*direction>
+  template <basic_node_type* basic_node_type::* direction>
   void slide_fully_impl() {
     while (current_node_->*direction != NIL_) {
       current_node_ = current_node_->*direction;
     }
   }
 
-  template <basic_node_type* basic_node_type::*direction>
+  template <basic_node_type* basic_node_type::* direction>
   void slide_up_while_not_impl() {
     while (current_node_->parent->*direction == current_node_ &&
            current_node_ != NIL_) {
