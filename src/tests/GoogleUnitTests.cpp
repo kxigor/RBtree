@@ -43,6 +43,18 @@ TEST(RBTREE, INSERT_PERFORMED) {
   ASSERT_EQ(m.size(), kInsSize);
 }
 
+TEST(RBTREE, EMPTY) {
+  RBtree<int, int> m;
+  ASSERT_TRUE(m.empty());
+  m.insert({{}, {}});
+  ASSERT_FALSE(m.empty());
+}
+
+TEST(RBTREE, GETALLOCATOR) {
+  RBtree<int, int> m;
+  m.get_allocator();
+}
+
 TEST(RBTREE, ELEMENT_ACCESS) {
   RBtree<int, int> m;
 
@@ -76,7 +88,7 @@ TEST(RBTREE, CLEAR) {
   RBtree<int, int> m;
   insert_shuffled_sequence(m, 0, kArrSize);
   m.clear();
-  ASSERT_EQ(m.size(), 0);
+  ASSERT_TRUE(m.empty());
 }
 
 TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
@@ -366,7 +378,7 @@ TEST(RBTREE, SPACESHIP_OPERATOR) {
   ASSERT_TRUE((m4 <=> m1) == 0);
 }
 
-TEST(RBTREE, ERASE_SINGLE_ELEMENT) {
+TEST(RBTREE, ERASE) {
   RBtree<int, int> tree;
   insert_shuffled_sequence(tree, 0, kArrSize);
   for (int i = 0; i < kArrSize; ++i) {
@@ -376,7 +388,18 @@ TEST(RBTREE, ERASE_SINGLE_ELEMENT) {
     ASSERT_FALSE(tree.contains(i));
     ASSERT_EQ(tree.size(), kArrSize - 1 - i);
   }
+  ASSERT_TRUE(tree.empty());
+}
 
+TEST(RBTREE, ERASE_BY_KEY) {
+  RBtree<int, int> tree;
+  insert_shuffled_sequence(tree, 0, kArrSize);
+  for (int i = 0; i < kArrSize; ++i) {
+    ASSERT_TRUE(tree.contains(i));
+    tree.erase(i);
+    ASSERT_FALSE(tree.contains(i));
+    ASSERT_EQ(tree.size(), kArrSize - 1 - i);
+  }
   ASSERT_TRUE(tree.empty());
 }
 
@@ -404,6 +427,24 @@ TEST(RBTREE, ERASE_RANGE) {
   }
 
   ASSERT_EQ(tree.size(), kArrSize - kLastBorder + kFirstBorder);
+}
+
+TEST(RBTREE, ERASE_IF) {
+  const auto EvenPred = [](const RBtree<int, int>::value_type& val) noexcept {
+    return !(val.first & 1);
+  };
+  const auto OddPred = [](const RBtree<int, int>::value_type& val) noexcept {
+    return val.first & 1;
+  };
+  RBtree<int, int> m;
+  insert_sequence(m, 0, kInsSize, 1);
+  m.erase_if(EvenPred);
+  ASSERT_EQ(m.size(), kInsSize / 2);
+  for (const auto& [key, value] : m) {
+    ASSERT_EQ(key % 2, 1);
+  }
+  m.erase_if(OddPred);
+  ASSERT_TRUE(m.empty());
 }
 
 int main(int argc, char** argv) {

@@ -103,18 +103,51 @@ class RBtree {
   };
 
   using basic_node_type = BasicNode;
+  using basic_node_allocator_type = typename std::allocator_traits<
+      allocator_type>::template rebind_alloc<basic_node_type>;
+  using basic_node_allocator_traits =
+      std::allocator_traits<basic_node_allocator_type>;
+
   using node_type = Node;
   using node_allocator_type = typename std::allocator_traits<
       allocator_type>::template rebind_alloc<node_type>;
   using node_allocator_traits = std::allocator_traits<node_allocator_type>;
 
+  using node_pat = propagate_assignment_traits<node_allocator_type>;
+  using basic_node_pat = propagate_assignment_traits<basic_node_allocator_type>;
+
   using Color = typename basic_node_type::Color;
 
  public:
   /*========================= Member functions ========================*/
-  RBtree() = default;
+  RBtree() { construct_nil(); };
 
-  ~RBtree() { clear(); }
+  ~RBtree() {
+    clear();
+    destroy_nil();
+  }
+
+  /*TODO tests*/
+  RBtree(RBtree&& /*unused*/) = default;
+
+  /*TODO code*/
+  RBtree(const RBtree& other);
+
+  /*TODO code*/
+  RBtree& operator=(RBtree&& other) {
+    if (node_pat::is_other_allocator_move(alloc_, other.alloc_) &&
+        basic_node_pat::is_other_allocator_move(basic_alloc_,
+                                                other.basic_alloc_)) {
+      compare_ = std::move(other.compare_);
+      alloc_ = std::move(other.alloc_);
+      basic_alloc_ = std::move(other.basic_alloc_);
+      NIL_ = other.NIL_;
+      root_ = other.root_;
+      size_ = other.size_;
+    } else {
+    }
+    return *this;
+  }
 
   allocator_type get_allocator() const noexcept { return allocator_type(); }
 
@@ -157,7 +190,7 @@ class RBtree {
 
   const_iterator cbegin() const noexcept { return begin(); }
 
-  iterator end() noexcept { return construct_iterator(&NIL_); }
+  iterator end() noexcept { return construct_iterator(NIL_); }
 
   const_iterator end() const noexcept {
     return const_cast<RBtree*>(this)->end();
@@ -239,7 +272,7 @@ class RBtree {
   template <class... Args>
   std::pair<iterator, bool> emplace(Args&&... args) {
     node_type* new_node = allocate();
-    construct(new_node, &NIL_, &NIL_, &NIL_, Color::Red,
+    construct(new_node, NIL_, NIL_, NIL_, Color::Red,
               std::forward<Args>(args)...);
     return insert(static_cast<basic_node_type*>(new_node));
   }
@@ -304,19 +337,19 @@ class RBtree {
   friend bool operator==(const RBtree& lhs, const RBtree& rhs) {
     return (lhs <=> rhs) == 0;
   }
-  /*TODO: improve codestyle*/
+
   friend auto operator<=>(const RBtree& lhs, const RBtree& rhs) {
+    const auto compare_pred = [&](const auto& l, const auto& r) {
+      if (lhs.compare_less(l.first, r.first)) {
+        return std::strong_ordering::less;
+      }
+      if (lhs.compare_less(r.first, l.first)) {
+        return std::strong_ordering::greater;
+      }
+      return std::strong_ordering::equal;
+    };
     return std::lexicographical_compare_three_way(
-        lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
-        [&](const auto& l, const auto& r) {
-          if (lhs.compare_less(l.first, r.first)) {
-            return std::strong_ordering::less;
-          }
-          if (lhs.compare_less(r.first, l.first)) {
-            return std::strong_ordering::greater;
-          }
-          return std::strong_ordering::equal;
-        });
+        lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_pred);
   }
 
   /*TODO code*/
@@ -324,19 +357,18 @@ class RBtree {
     (void)lhs, (void)rhs;
   }
 
-  /*TODO tests*/
   template <typename Pred>
     requires std::is_nothrow_invocable_r_v<bool, Pred,
                                            typename RBtree::value_type>
-  friend size_type erase_if(RBtree& tree, Pred pred) noexcept {
+  size_type erase_if(Pred pred) noexcept {
     RBtree::size_type result = 0;
-    iterator current = tree.begin();
-    iterator last = tree.end();
+    iterator current = begin();
+    iterator last = end();
     iterator next;
     while (current != last) {
       next = std::next(current);
       if (pred(*current)) {
-        tree.erase(current);
+        erase(current);
         ++result;
       }
       current = next;
@@ -347,7 +379,7 @@ class RBtree {
  private:
   template <bool (RBtree::*compare)(const key_type&, const key_type&) const>
   iterator bound_impl(const key_type& key) {
-    basic_node_type* found = &NIL_;
+    basic_node_type* found = NIL_;
     basic_node_type* current = root_;
 
     while (!is_nil(current)) {
@@ -364,7 +396,7 @@ class RBtree {
 
   /*TODO: improve codestyle*/
   std::pair<iterator, bool> insert(basic_node_type* new_node) {
-    basic_node_type* prev = &NIL_;
+    basic_node_type* prev = NIL_;
     basic_node_type* current = root_;
 
     while (!is_nil(current)) {
@@ -475,15 +507,6 @@ class RBtree {
     decrease_size(1);
   }
 
-  void replace_child_in_parent(basic_node_type* current,
-                               basic_node_type* new_child) {
-    if (current->is_left()) {
-      current->parent->left = new_child;
-    } else {
-      current->parent->right = new_child;
-    }
-  }
-
   basic_node_type* get_minimum(basic_node_type* current) {
     while (!is_nil(current->left)) {
       current = current->left;
@@ -541,24 +564,29 @@ class RBtree {
   void rotate_impl(basic_node_type* node) noexcept {
     basic_node_type* child = node->*another_direction;
 
-    child->parent = node->parent;
-    node->parent = child;
-
-    if (is_nil(child->parent)) {
+    if (is_nil(node->parent)) {
       update_root(child);
     } else {
-      if (child->parent->left == node) {
-        child->parent->left = child;
-      } else {
-        child->parent->right = child;
-      }
+      replace_child_in_parent(node, child);
     }
+
+    child->parent = node->parent;
+    node->parent = child;
 
     node->*another_direction = child->*direction;
     if (!is_nil(node->*another_direction)) {
       (node->*another_direction)->parent = node;
     }
     child->*direction = node;
+  }
+
+  void replace_child_in_parent(basic_node_type* current,
+                               basic_node_type* new_child) {
+    if (current->is_left()) {
+      current->parent->left = new_child;
+    } else {
+      current->parent->right = new_child;
+    }
   }
 
   void clear_impl() noexcept {
@@ -575,20 +603,20 @@ class RBtree {
       basic_node_type* next = current->parent;
       annihilate(current);
       if (next->left == current) {
-        next->left = &NIL_;
+        next->left = NIL_;
       } else {
-        next->right = &NIL_;
+        next->right = NIL_;
       }
       current = next;
     }
 
-    update_root(&NIL_);
+    update_root(NIL_);
     size_ = 0;
   }
 
   void update_root(basic_node_type* new_root) noexcept {
     root_ = new_root;
-    NIL_.left = new_root;
+    NIL_->left = new_root;
   }
 
   void annihilate(basic_node_type* object) noexcept {
@@ -615,7 +643,7 @@ class RBtree {
   }
 
   iterator construct_iterator(basic_node_type* node) noexcept {
-    return {node, &NIL_};
+    return {node, NIL_};
   }
 
   bool compare_less(const key_type& lhs, const key_type& rhs) const {
@@ -642,11 +670,24 @@ class RBtree {
 
   void decrease_size(std::size_t offset) noexcept { size_ -= offset; }
 
-  bool is_nil(basic_node_type* node) const noexcept { return node == &NIL_; }
+  bool is_nil(basic_node_type* node) const noexcept { return node == NIL_; }
+
+  void construct_nil() {
+    NIL_ = basic_node_allocator_traits::allocate(basic_alloc_, 1);
+    std::construct_at(NIL_, NIL_, NIL_, NIL_, Color::Black);
+    root_ = NIL_;
+  }
+
+  void destroy_nil() noexcept {
+    std::destroy_at(NIL_);
+    basic_node_allocator_traits::deallocate(basic_alloc_, NIL_, 1);
+  }
 
   node_allocator_type alloc_{};
-  basic_node_type NIL_{&NIL_, &NIL_, &NIL_, Color::Black};
-  basic_node_type* root_ = &NIL_;
+  basic_node_allocator_type basic_alloc_{};
+
+  basic_node_type* NIL_{};
+  basic_node_type* root_{};
   key_compare compare_{};
   size_type size_{};
 };
