@@ -40,7 +40,7 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
       const RBtree<Key, T, Compare, Allocator>& tree,
       typename RBtree<Key, T, Compare, Allocator>::BasicNode* node,
       std::ofstream& file) {
-    if (tree.is_nil(node)) {
+    if (node->is_nil()) {
       return;
     }
 
@@ -53,22 +53,23 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     std::string font_color = node->is_red() ? "white" : "white";
 
     file << "  node" << node_ptr << " [label=\"key:" << node->get_key()
-         << "\nmapped:" << node->get_mapped() << "\", fillcolor=" << node_color
+         << "\nmapped:" << node->get_mapped() << "\naddr:" << std::hex
+         << node_ptr << std::dec << "\", fillcolor=" << node_color
          << ", fontcolor=" << font_color << "];\n";
 
-    if (!tree.is_nil(node->left)) {
+    if (node->left->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << left_ptr
            << " [color=green, label=\"left\", labelfloat=true];\n";
       GenGraphRecRB(tree, node->left, file);
     }
 
-    if (!tree.is_nil(node->right)) {
+    if (node->right->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << right_ptr
            << " [color=red, label=\"right\", labelfloat=true];\n";
       GenGraphRecRB(tree, node->right, file);
     }
 
-    if (!tree.is_nil(node->parent)) {
+    if (node->parent->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << parent_ptr
            << " [color=blue];\n";
     }

@@ -10,6 +10,7 @@
 
 static const constexpr int kInsSize = 5000;
 static const constexpr int kArrSize = 5000;
+static const constexpr int kAttempsWithRandomShuffle = 50;
 
 void insert_sequence(auto& tree, auto start, auto stop, auto step = 1) {
   for (auto i = start; i < stop; i += step) {
@@ -82,13 +83,6 @@ TEST(RBTREE, INSERT_SORTING) {
   for (int i = 0; i < kArrSize; ++i) {
     ASSERT_EQ(m[i], i);
   }
-}
-
-TEST(RBTREE, CLEAR) {
-  RBtree<int, int> m;
-  insert_shuffled_sequence(m, 0, kArrSize);
-  m.clear();
-  ASSERT_TRUE(m.empty());
 }
 
 TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
@@ -176,6 +170,13 @@ TEST(RBTREE, ITERATOR_BACKWARD_RANGE_LOOP) {
     ASSERT_EQ(el.first, i);
     ASSERT_EQ(el.second, i);
   }
+}
+
+TEST(RBTREE, CLEAR) {
+  RBtree<int, int> m;
+  insert_shuffled_sequence(m, 0, kArrSize);
+  m.clear();
+  ASSERT_TRUE(m.empty());
 }
 
 TEST(RBTREE, COUNT) {
@@ -383,12 +384,30 @@ TEST(RBTREE, ERASE) {
   insert_shuffled_sequence(tree, 0, kArrSize);
   for (int i = 0; i < kArrSize; ++i) {
     auto it = tree.find(i);
+    ASSERT_EQ(it, tree.begin());
     ASSERT_NE(it, tree.end());
     tree.erase(it);
     ASSERT_FALSE(tree.contains(i));
     ASSERT_EQ(tree.size(), kArrSize - 1 - i);
   }
   ASSERT_TRUE(tree.empty());
+}
+
+TEST(RBTREE, ERASE_MIDDLE) {
+  for (int attempts = 0; attempts < kAttempsWithRandomShuffle; ++attempts) {
+    RBtree<int, int> tree;
+    insert_shuffled_sequence(tree, 0, kArrSize);
+    int ctr = 0;
+    for (int i = kArrSize / 4 * 1; i < kArrSize / 4 * 3; ++i) {
+      auto it = tree.find(i);
+      ASSERT_NE(it, tree.end());
+      tree.erase(it);
+      ASSERT_FALSE(tree.contains(i));
+      ++ctr;
+      ASSERT_EQ(tree.size(), kArrSize - ctr);
+    }
+    ASSERT_EQ(tree.size(), kArrSize - ctr);
+  }
 }
 
 TEST(RBTREE, ERASE_BY_KEY) {
@@ -404,8 +423,8 @@ TEST(RBTREE, ERASE_BY_KEY) {
 }
 
 TEST(RBTREE, ERASE_RANGE) {
-  const int kFirstBorder = 1000;
-  const int kLastBorder = 4000;
+  const int kFirstBorder = kArrSize / 4 * 1;
+  const int kLastBorder = kArrSize / 4 * 3;
 
   RBtree<int, int> tree;
   insert_shuffled_sequence(tree, 0, kArrSize);

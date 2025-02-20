@@ -52,7 +52,7 @@ class RBtree {
     enum class Color : bool { Red, Black };
 
     static constexpr BasicNode* BasicNode::*another_direction(
-        BasicNode* BasicNode::*direction) {
+        BasicNode* BasicNode::*direction) noexcept {
       return (direction == &BasicNode::left) ? &BasicNode::right
                                              : &BasicNode::left;
     }
@@ -79,17 +79,17 @@ class RBtree {
 
     bool is_not_nil() const noexcept { return !nil_flag; }
 
-    const key_type& get_key() const { return get_value().first; }
+    const key_type& get_key() const noexcept { return get_value().first; }
 
-    mapped_type& get_mapped() { return get_value().second; }
+    mapped_type& get_mapped() noexcept { return get_value().second; }
 
-    const mapped_type& get_mapped() const {
+    const mapped_type& get_mapped() const noexcept {
       return const_cast<BasicNode*>(this)->get_mapped();
     }
 
-    value_type& get_value() { return static_cast<Node*>(this)->val; }
+    value_type& get_value() noexcept { return static_cast<Node*>(this)->val; }
 
-    void replace_child_in_parent(BasicNode* new_child) {
+    void replace_child_in_parent(BasicNode* new_child) noexcept {
       if (is_left()) {
         parent->left = new_child;
       } else {
@@ -97,16 +97,23 @@ class RBtree {
       }
     }
 
-    const value_type& get_value() const {
+    const value_type& get_value() const noexcept {
       return const_cast<BasicNode*>(this)->get_value();
     }
 
-    BasicNode* get_most_left() { return get_most_impl<&BasicNode::left>(); }
+    BasicNode* get_most_left() noexcept {
+      return get_most_impl<&BasicNode::left>();
+    }
 
-    BasicNode* get_most_right() { return get_most_impl<&BasicNode::right>(); }
+    BasicNode* get_most_right() noexcept {
+      return get_most_impl<&BasicNode::right>();
+    }
 
     template <BasicNode* BasicNode::*direction>
-    BasicNode* get_most_impl() {
+    BasicNode* get_most_impl() noexcept {
+      if (is_nil()) {
+        return this;
+      }
       BasicNode* result = this;
       while ((result->*direction)->is_not_nil()) {
         result = result->*direction;
@@ -191,7 +198,6 @@ class RBtree {
   }
 
   /*============================ Iterators ============================*/
-  /*TODO: Complexity Constant*/
   iterator begin() noexcept { return root_->get_most_left(); }
 
   const_iterator begin() const noexcept {
@@ -246,12 +252,8 @@ class RBtree {
 
   iterator erase(const_iterator first, const_iterator last) noexcept {
     const_iterator current = first;
-    const_iterator next;
-
     while (current != last) {
-      next = std::next(current);
-      erase(current);
-      current = next;
+      current = erase(current);
     }
     return current;
   }
@@ -407,6 +409,7 @@ class RBtree {
 
   /*TODO: improve codestyle*/
   std::pair<iterator, bool> insert(basic_node_type* new_node) {
+    assert(NIL_->right == root_->get_most_left());
     basic_node_type* prev = NIL_;
     basic_node_type* current = root_;
 
@@ -422,11 +425,14 @@ class RBtree {
     new_node->parent = prev;
 
     if (prev->is_nil()) {
+      update_begin_on_insert(new_node);
       update_root(new_node);
     } else {
       if (compare_less(prev->get_key(), new_node->get_key())) {
+        update_begin_on_insert(new_node);
         prev->right = new_node;
       } else if (compare_greater(prev->get_key(), new_node->get_key())) {
+        update_begin_on_insert(new_node);
         prev->left = new_node;
       } else {
         annihilate(new_node);
@@ -437,6 +443,13 @@ class RBtree {
     increase_size(1);
     insert_fixup(new_node);
     return {new_node, true};
+  }
+
+  void update_begin_on_insert(basic_node_type* insert_node) {
+    if (NIL_->right->is_nil() ||
+        compare_less(insert_node->get_key(), NIL_->right->get_key())) {
+      NIL_->right = insert_node;
+    }
   }
 
   void insert_fixup(basic_node_type* current) noexcept {
@@ -474,6 +487,7 @@ class RBtree {
     return current;
   }
 
+  /*TODO: пофиксить баги, иногда не работает*/
   void erase(basic_node_type* delete_node) noexcept {
     basic_node_type* instead_node = nullptr;
     basic_node_type* restored_node = nullptr;
@@ -483,6 +497,8 @@ class RBtree {
     } else {
       instead_node = delete_node->right->get_most_left();
     }
+
+    Color instead_color = instead_node->color;
 
     if (instead_node->left->is_not_nil()) {
       restored_node = instead_node->left;
@@ -509,14 +525,32 @@ class RBtree {
       instead_node->right = delete_node->right;
       instead_node->left->parent = instead_node;
       instead_node->right->parent = instead_node;
+      instead_node->color = delete_node->color;
     }
 
-    if (instead_node->is_black()) {
+    if (instead_color == Color::Black) {
       erase_fixup(restored_node);
     }
 
+    update_begin_on_erase(delete_node, instead_node);
     annihilate(delete_node);
     decrease_size(1);
+  }
+
+  void update_begin_on_erase(basic_node_type* /*unused*/,
+                             basic_node_type* /*unused*/) noexcept {
+    // if (NIL_->right == delete_node) {
+    //   if (insted_node != delete_node) {
+    //     NIL_->right = insted_node;
+    //   } else if(delete_node->left->is_nil() && delete_node->right->is_nil())
+    //   {
+    //     NIL_->right = delete_node->parent;
+    //   } else {
+    //     NIL_->right = delete_node->right->get_most_left();
+    //   }
+    // }
+    /*TODO contants complexity*/
+    NIL_->right = root_->get_most_left();
   }
 
   void erase_fixup(basic_node_type* restored_node) noexcept {
@@ -591,6 +625,7 @@ class RBtree {
   }
 
   void annihilate(basic_node_type* object) noexcept {
+    assert(object->is_not_nil());
     node_type* currect_pointer = static_cast<node_type*>(object);
     destroy(currect_pointer);
     deallocate(currect_pointer);
@@ -739,7 +774,7 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   template <basic_node_type* basic_node_type::*direction>
   void slide_up_while_not_impl() {
     while (current_node_->parent->*direction == current_node_ &&
-           current_node_->is_not_nil()) {
+           current_node_->parent->is_not_nil() && current_node_->is_not_nil()) {
       current_node_ = current_node_->parent;
     }
     current_node_ = current_node_->parent;
