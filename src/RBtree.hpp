@@ -198,7 +198,7 @@ class RBtree {
   }
 
   /*============================ Iterators ============================*/
-  iterator begin() noexcept { return root_->get_most_left(); }
+  iterator begin() noexcept { return NIL_->right; }
 
   const_iterator begin() const noexcept {
     return const_cast<RBtree*>(this)->begin();
@@ -487,7 +487,6 @@ class RBtree {
     return current;
   }
 
-  /*TODO: пофиксить баги, иногда не работает*/
   void erase(basic_node_type* delete_node) noexcept {
     basic_node_type* instead_node = nullptr;
     basic_node_type* restored_node = nullptr;
@@ -519,7 +518,9 @@ class RBtree {
     }
 
     if (instead_node != delete_node) {
-      delete_node->replace_child_in_parent(instead_node);
+      if (delete_node->parent->is_not_nil()) {
+        delete_node->replace_child_in_parent(instead_node);
+      }
       instead_node->parent = delete_node->parent;
       instead_node->left = delete_node->left;
       instead_node->right = delete_node->right;
@@ -532,25 +533,25 @@ class RBtree {
       erase_fixup(restored_node);
     }
 
-    update_begin_on_erase(delete_node, instead_node);
+    update_begin_on_erase(delete_node, instead_node, restored_node);
     annihilate(delete_node);
     decrease_size(1);
   }
 
-  void update_begin_on_erase(basic_node_type* /*unused*/,
-                             basic_node_type* /*unused*/) noexcept {
-    // if (NIL_->right == delete_node) {
-    //   if (insted_node != delete_node) {
-    //     NIL_->right = insted_node;
-    //   } else if(delete_node->left->is_nil() && delete_node->right->is_nil())
-    //   {
-    //     NIL_->right = delete_node->parent;
-    //   } else {
-    //     NIL_->right = delete_node->right->get_most_left();
-    //   }
-    // }
-    /*TODO contants complexity*/
-    NIL_->right = root_->get_most_left();
+  void update_begin_on_erase(basic_node_type* delete_node,
+                             basic_node_type* instead_node,
+                             basic_node_type* restored_node) noexcept {
+    if (NIL_->right == delete_node) {
+      if (instead_node == delete_node) {
+        if (restored_node->is_nil()) {
+          NIL_->right = delete_node->parent;
+        } else {
+          NIL_->right = restored_node;
+        }
+      } else {
+        NIL_->right = instead_node;
+      }
+    }
   }
 
   void erase_fixup(basic_node_type* restored_node) noexcept {
