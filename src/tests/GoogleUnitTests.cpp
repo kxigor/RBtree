@@ -8,9 +8,16 @@
 
 #include "RBtree.hpp"
 
-static const constexpr int kInsSize = 5000;
-static const constexpr int kArrSize = 5000;
-static const constexpr int kAttempsWithRandomShuffle = 50;
+static constexpr const int kInsSize = 5000;
+static constexpr const int kArrSize = 5000;
+static constexpr const int kAttempsWithRandomShuffle = 50;
+static constexpr const int kSortingInsertAttemps = 300;
+
+#define DO_ATTEMPS(attemps_number, ...)                          \
+  for (auto current_attemp = 0; current_attemp < attemps_number; \
+       ++current_attemp) {                                       \
+    __VA_ARGS__                                                  \
+  }
 
 void insert_sequence(auto& tree, auto start, auto stop, auto step = 1) {
   for (auto i = start; i < stop; i += step) {
@@ -36,6 +43,18 @@ void insert_shuffled_sequence(auto& tree, auto from, auto arrsize) {
   }
 }
 
+RBtree<int, int> init_sequence(auto start, auto stop, auto step = 1) {
+  RBtree<int, int> result;
+  insert_sequence(result, start, stop, step);
+  return result;
+}
+
+RBtree<int, int> init_shuffled_sequence(auto from, auto arrsize) {
+  RBtree<int, int> result;
+  insert_shuffled_sequence(result, from, arrsize);
+  return result;
+}
+
 TEST(RBTREE, CREATE) { RBtree<int, int> m; }
 
 TEST(RBTREE, INSERT_PERFORMED) {
@@ -57,11 +76,9 @@ TEST(RBTREE, GETALLOCATOR) {
 }
 
 TEST(RBTREE, ELEMENT_ACCESS) {
-  RBtree<int, int> m;
-
-  insert_sequence(m, 1, 32, 2);
-
-  for (int i = 0; i < 32; ++i) {
+  constexpr const int kArrSizeEA = 32;
+  RBtree<int, int> m = init_sequence(1, kArrSizeEA, 2);
+  for (int i = 0; i < kArrSizeEA; ++i) {
     if (i & 1) {
       ASSERT_EQ(m.at(i), i);
     } else {
@@ -69,20 +86,20 @@ TEST(RBTREE, ELEMENT_ACCESS) {
     }
   }
 
-  insert_sequence(m, 0, 32, 2);
+  insert_sequence(m, 0, kArrSizeEA, 2);
 
-  for (int i = 0; i < 32; ++i) {
+  for (int i = 0; i < kArrSizeEA; ++i) {
     ASSERT_EQ(m[i], i);
   }
 }
 
 TEST(RBTREE, INSERT_SORTING) {
-  RBtree<int, int> m;
-  insert_shuffled_sequence(m, 0, kArrSize);
-
-  for (int i = 0; i < kArrSize; ++i) {
-    ASSERT_EQ(m[i], i);
-  }
+  DO_ATTEMPS(kSortingInsertAttemps, 
+    RBtree<int, int> m = init_shuffled_sequence(0, kArrSize);
+    for (int i = 0; i < kArrSize; ++i) {
+      ASSERT_EQ(m[i], i);
+    }
+  )
 }
 
 TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
@@ -91,8 +108,7 @@ TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
 }
 
 TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
-  RBtree<int, int> m;
-  insert_shuffled_sequence(m, 0, kArrSize);
+  RBtree<int, int> m = init_shuffled_sequence(0, kArrSize);
   auto it = m.begin();
   for (int i = 0; i < kInsSize; ++i) {
     ASSERT_EQ(it->first, i);
