@@ -42,14 +42,14 @@ enable_testing()
 find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
 
-set(SRCS_TESTS src/tests/GoogleUnitTests.cpp)
-add_executable(tests ${SRCS_TESTS})
+set(SRCS_STRESS_TESTS src/tests/GoogleStressTests.cpp)
+add_executable(stress_tests ${SRCS_STRESS_TESTS})
 
-target_include_directories(tests SYSTEM PUBLIC  Threads::Threads ${GTEST_INCLUDE_DIRS})
-set_property(TARGET tests PROPERTY RUNTIME_OUTPUT_DIRECTORY "")
+target_include_directories(stress_tests SYSTEM PUBLIC Threads::Threads ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
+set_property(TARGET stress_tests PROPERTY RUNTIME_OUTPUT_DIRECTORY "")
 
-target_link_libraries(tests ${GTEST_LIBRARIES})
-add_test(NAME Tests COMMAND tests)
+target_link_libraries(stress_tests ${GTEST_LIBRARIES})
+add_test(NAME GoogleStressTests COMMAND stress_tests)
 
 # Adding format test
 set(CLANG_FORMAT_SCRIPT src/tests/clang_format_tests.sh)
