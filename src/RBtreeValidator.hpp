@@ -29,9 +29,9 @@ class RBtreeValidator
       "Invalid coloring", "Nil node error",  "Invalid BST properties"};
 
   using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
-  using tree_type = mediator_type::tree_type;
-  using node_type = mediator_type::node_type;
-  using errors_type = std::bitset<Count>;
+  using tree_type = typename mediator_type::tree_type;
+  using node_type = typename mediator_type::node_type;
+  using errors_type = typename std::bitset<Count>;
 
   using mediator_type::RBtreeFriendMediator;
 
@@ -107,7 +107,7 @@ class RBtreeValidator
   bool check_redblack_height() const {
     std::unordered_map<const node_type*, std::size_t> redblack_height;
 
-    for (const auto& node : get_reverse_BFS()) {
+    for (const auto& node : get_reversed_BFS()) {
       auto left_height = redblack_height[node->left];
       auto right_height = redblack_height[node->right];
       if (left_height != right_height) {
@@ -139,6 +139,7 @@ class RBtreeValidator
   bool check_nil() const {
     const node_type* NIL = this->get_NIL();
     bool result = true;
+
     result &= NIL->is_black();
     result &= NIL->left == this->get_root();
     result &= NIL->right == this->get_tree().begin();
@@ -197,7 +198,7 @@ class RBtreeValidator
     return result;
   }
 
-  std::vector<const node_type*> get_reverse_BFS() const {
+  std::vector<const node_type*> get_reversed_BFS() const {
     auto result = get_BFS();
     std::ranges::reverse(result);
     return result;

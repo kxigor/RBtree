@@ -13,8 +13,9 @@ class RBtreeVisualizer
     : public RBtreeFriendMediator<Key, T, Compare, Allocator> {
  public:
   using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
-  using tree_type = mediator_type::tree_type;
-  using node_type = mediator_type::node_type;
+  using tree_type = typename mediator_type::tree_type;
+  using node_type = typename mediator_type::node_type;
+
   using mediator_type::RBtreeFriendMediator;
 
   void GenGraphRB() const {

@@ -5,7 +5,7 @@ template <class Key, class T, class Compare, class Allocator>
 class RBtreeFriendMediator {
  public:
   using tree_type = RBtree<Key, T, Compare, Allocator>;
-  using node_type = tree_type::basic_node_type;
+  using node_type = typename tree_type::basic_node_type;
 
   RBtreeFriendMediator() = delete;
   RBtreeFriendMediator(tree_type& tree) : tree_(tree) {}

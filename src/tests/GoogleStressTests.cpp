@@ -7,6 +7,7 @@
 #include <ranges>
 
 #include "RBtree.hpp"
+#include "RBtreeValidator.hpp"
 
 static constexpr const int kInsertSize = 500000;
 static constexpr const int kShuffledInsertSize = 5000;
