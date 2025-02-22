@@ -1,3 +1,4 @@
+#pragma once
 #include <cassert>
 #include <cstdint>
 #include <fstream>
@@ -5,10 +6,18 @@
 #include <memory>
 #include <string>
 
+#include "RBtreeFriendMediator.hpp"
+
 template <class Key, class T, class Compare, class Allocator>
-class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
+class RBtreeVisualizer
+    : public RBtreeFriendMediator<Key, T, Compare, Allocator> {
  public:
-  static void GenGraphRB(const RBtree<Key, T, Compare, Allocator>& tree) {
+  using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
+  using tree_type = mediator_type::tree_type;
+  using node_type = mediator_type::node_type;
+  using mediator_type::RBtreeFriendMediator;
+
+  void GenGraphRB() {
     std::ofstream file("graph.dot");
     assert(file.is_open());
 
@@ -22,12 +31,12 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     file << "  label=<<table border=\"1\" cellborder=\"0\" cellspacing=\"0\" "
             "cellpadding=\"4\">\n";
     file << "    <tr><td border=\"1\" bgcolor=\"black\">\n";
-    file << "      <font color=\"white\" point-size=\"20\"><b>Red-Black tree "
+    file << "      <font color=\"red\" point-size=\"20\"><b>Red-Black tree "
             "by KXI</b></font>\n";
     file << "    </td></tr>\n";
     file << "  </table>>;\n";
 
-    GenGraphRecRB(tree, tree.root_, file);
+    GenGraphRecRB(this->get_root(), file);
 
     file << "}\n";
 
@@ -36,10 +45,7 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
   }
 
  private:
-  static void GenGraphRecRB(
-      const RBtree<Key, T, Compare, Allocator>& tree,
-      typename RBtree<Key, T, Compare, Allocator>::BasicNode* node,
-      std::ofstream& file) {
+  void GenGraphRecRB(node_type* node, std::ofstream& file) {
     if (node->is_nil()) {
       return;
     }
@@ -60,13 +66,13 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     if (node->left->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << left_ptr
            << " [color=green, label=\"left\", labelfloat=true];\n";
-      GenGraphRecRB(tree, node->left, file);
+      GenGraphRecRB(node->left, file);
     }
 
     if (node->right->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << right_ptr
            << " [color=red, label=\"right\", labelfloat=true];\n";
-      GenGraphRecRB(tree, node->right, file);
+      GenGraphRecRB(node->right, file);
     }
 
     if (node->parent->is_not_nil()) {
@@ -75,3 +81,8 @@ class RBtree<Key, T, Compare, Allocator>::RBtreeVisualizer {
     }
   }
 };
+
+template <class Key, class T, class Compare = std::less<Key>,
+          class Allocator = std::allocator<std::pair<const Key, T>>>
+RBtreeVisualizer(RBtree<Key, T, Compare, Allocator>&)
+    -> RBtreeVisualizer<Key, T, Compare, Allocator>;

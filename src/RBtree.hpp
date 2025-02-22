@@ -42,7 +42,8 @@ class RBtree {
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 #ifdef DEBUG_
-  class RBtreeVisualizer;
+  template <typename K, typename V, typename C, typename A>
+  friend class RBtreeFriendMediator;
 #endif
 
  private:
@@ -784,7 +785,3 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   /*================================ Fields ================================*/
   basic_node_type* current_node_{nullptr};
 };
-
-#ifdef DEBUG_
-#include "RBtreeVizualizer.hpp"
-#endif
