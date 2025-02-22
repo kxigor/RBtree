@@ -9,6 +9,8 @@ class RBtreeTestConstructor
   using tree_type = mediator_type::tree_type;
   using node_type = mediator_type::node_type;
   using mediator_type::RBtreeFriendMediator;
+
+  
 };
 
 template <class Key, class T, class Compare = std::less<Key>,

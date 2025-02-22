@@ -17,7 +17,7 @@ class RBtreeVisualizer
   using node_type = mediator_type::node_type;
   using mediator_type::RBtreeFriendMediator;
 
-  void GenGraphRB() {
+  void GenGraphRB() const {
     std::ofstream file("graph.dot");
     assert(file.is_open());
 
@@ -45,7 +45,7 @@ class RBtreeVisualizer
   }
 
  private:
-  void GenGraphRecRB(node_type* node, std::ofstream& file) {
+  void GenGraphRecRB(const node_type* node, std::ofstream& file) const {
     if (node->is_nil()) {
       return;
     }
