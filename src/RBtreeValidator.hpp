@@ -1,5 +1,6 @@
 #pragma once
 #include <bitset>
+#include <iomanip>
 #include <queue>
 #include <ranges>
 #include <stack>
@@ -24,9 +25,19 @@ class RBtreeValidator
     Count
   };
 
-  static constexpr std::array<const char*, Count> errorMessages = {
+  static constexpr std::array<std::string_view, Count> errorMessages = {
       "Invalid parents",  "Cycles detected", "Invalid height",
       "Invalid coloring", "Nil node error",  "Invalid BST properties"};
+
+  static constexpr size_t computeMaxMessageLength() {
+    size_t maxLength = 0;
+    for (size_t i = 0; i < Count; ++i) {
+      maxLength = std::max(maxLength, errorMessages[i].length());
+    }
+    return maxLength;
+  }
+
+  static constexpr size_t kMaxMessageLength = computeMaxMessageLength();
 
   using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
   using tree_type = typename mediator_type::tree_type;
@@ -37,16 +48,17 @@ class RBtreeValidator
 
   friend std::ostream& operator<<(std::ostream& out,
                                   const RBtreeValidator& validator) {
-    if (validator.errors_.none()) {
-      out << "No errors found.\n";
-      return out;
-    }
-
-    out << "Errors:\n";
+    out << std::setw(kMaxMessageLength) << std::left
+        << "Number of errors" << ": " <<validator.errors_.count() << "\n";
     for (size_t i = 0; i < Count; ++i) {
+      out << std::setw(kMaxMessageLength) << std::left << errorMessages[i]
+          << ": ";
       if (validator.errors_.test(i)) {
-        out << "- " << errorMessages[i] << "\n";
+        out << "FAIL";
+      } else {
+        out << "OK";
       }
+      out << "\n";
     }
     return out;
   }

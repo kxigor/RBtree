@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -11,6 +12,28 @@
 template <class Key, class T, class Compare, class Allocator>
 class RBtreeVisualizer
     : public RBtreeFriendMediator<Key, T, Compare, Allocator> {
+  static constexpr const char* kTitleText = "Red-Black tree by KXI";
+  static constexpr const char* kTitleBgColor = "white";
+  static constexpr const char* kTitleFontColor = "black";
+  static constexpr int kTitleFontSize = 20;
+
+  static constexpr double kNodeSeparation = 0.5;
+  static constexpr double kRankSeparation = 0.5;
+
+  static constexpr const char* kRedNodeColor = "red";
+  static constexpr const char* kBlackNodeColor = "black";
+  static constexpr const char* kNodeFontColor = "white";
+  static constexpr const char* kLeftEdgeColor = "green";
+  static constexpr const char* kRightEdgeColor = "red";
+  static constexpr const char* kParentEdgeColor = "gray";
+  static constexpr const char* kParentEdgeStyle = "dashed";
+
+  static constexpr const char* kDotFilename = "graph.dot";
+  static constexpr const char* kPngFilename = "graph.png";
+
+  static constexpr const char* kGenerateErrorMessage =
+      "Failed to generate PNG from DOT file.";
+
  public:
   using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
   using tree_type = typename mediator_type::tree_type;
@@ -18,35 +41,39 @@ class RBtreeVisualizer
 
   using mediator_type::RBtreeFriendMediator;
 
-  void GenGraphRB() const {
-    std::ofstream file("graph.dot");
-    assert(file.is_open());
+  RBtreeVisualizer(tree_type& tree) : mediator_type(tree) {
+    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  }
+
+  void Visualize() {
+    file.open(kDotFilename);
 
     file << "digraph G {\n";
     file << "  rankdir=TB;\n";
-    file << "  nodesep=0.5;\n";
-    file << "  ranksep=0.5;\n";
-    file << "  node [shape=circle, style=filled];\n";
+    file << "  nodesep=" << kNodeSeparation << ";\n";
+    file << "  ranksep=" << kRankSeparation << ";\n";
+    file << "  node [shape=circle, style=filled, fontname=\"Arial\", "
+            "fontsize=14];\n";
 
     file << "  labelloc=\"t\";\n";
     file << "  label=<<table border=\"1\" cellborder=\"0\" cellspacing=\"0\" "
             "cellpadding=\"4\">\n";
-    file << "    <tr><td border=\"1\" bgcolor=\"black\">\n";
-    file << "      <font color=\"red\" point-size=\"20\"><b>Red-Black tree "
-            "by KXI</b></font>\n";
+    file << "    <tr><td border=\"1\" bgcolor=\"" << kTitleBgColor << "\">\n";
+    file << "      <font color=\"" << kTitleFontColor << "\" point-size=\""
+         << kTitleFontSize << "\"><b>" << kTitleText << "</b></font>\n";
     file << "    </td></tr>\n";
     file << "  </table>>;\n";
 
-    GenGraphRecRB(this->get_root(), file);
+    VisualizeRecursive(this->get_root());
 
     file << "}\n";
 
     file.close();
-    system("dot -Tpng graph.dot -o graph.png");
+    ExecuteGenerateCommand();
   }
 
  private:
-  void GenGraphRecRB(const node_type* node, std::ofstream& file) const {
+  void VisualizeRecursive(const node_type* node) {
     if (node->is_nil()) {
       return;
     }
@@ -56,31 +83,46 @@ class RBtreeVisualizer
     uintptr_t left_ptr = reinterpret_cast<uintptr_t>(node->left);
     uintptr_t right_ptr = reinterpret_cast<uintptr_t>(node->right);
 
-    std::string node_color = node->is_red() ? "red" : "black";
-    std::string font_color = node->is_red() ? "white" : "white";
+    std::string node_color = node->is_red() ? kRedNodeColor : kBlackNodeColor;
 
-    file << "  node" << node_ptr << " [label=\"key:" << node->get_key()
-         << "\nmapped:" << node->get_mapped() << "\naddr:" << std::hex
+    file << "  node" << node_ptr << " [label=\"key: " << node->get_key()
+         << "\nmapped: " << node->get_mapped() << "\naddr: " << std::hex
          << node_ptr << std::dec << "\", fillcolor=" << node_color
-         << ", fontcolor=" << font_color << "];\n";
+         << ", fontcolor=" << kNodeFontColor << "];\n";
 
     if (node->left->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << left_ptr
-           << " [color=green, label=\"left\", labelfloat=true];\n";
-      GenGraphRecRB(node->left, file);
+           << " [color=" << kLeftEdgeColor
+           << ", label=\"left\", labelfloat=true];\n";
+      VisualizeRecursive(node->left);
     }
 
     if (node->right->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << right_ptr
-           << " [color=red, label=\"right\", labelfloat=true];\n";
-      GenGraphRecRB(node->right, file);
+           << " [color=" << kRightEdgeColor
+           << ", label=\"right\", labelfloat=true];\n";
+      VisualizeRecursive(node->right);
     }
 
     if (node->parent->is_not_nil()) {
       file << "  node" << node_ptr << " -> node" << parent_ptr
-           << " [color=blue];\n";
+           << " [color=" << kParentEdgeColor << ", style=" << kParentEdgeStyle
+           << "];\n";
     }
   }
+
+  void ExecuteGenerateCommand() {
+    std::string command;
+    command += "dot -Tpng ";
+    command += kDotFilename;
+    command += " -o ";
+    command += kPngFilename;
+    if (std::system(command.c_str()) != 0) {
+      throw std::runtime_error(kGenerateErrorMessage);
+    }
+  }
+
+  std::ofstream file;
 };
 
 template <class Key, class T, class Compare = std::less<Key>,
