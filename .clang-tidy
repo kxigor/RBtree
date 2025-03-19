@@ -1,8 +1,31 @@
 ---
 
-Checks: '-*,readability-*,-readability-identifier-length,-readability-identifier-naming'
+Checks: >
+  -*,abseil-*,bugprone-*,clang-analyzer-*,cppcoreguidelines-*,
+  google-*,hicpp-*,llvm-*,misc-*,modernize-*,mpi-*,performance-*,
+  portability-*,readability-*,
+  -abseil-string-find-str-contains,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-special-member-functions,
+  -google-readability-todo,
+  -hicpp-avoid-c-arrays,
+  -hicpp-no-array-decay,
+  -hicpp-signed-bitwise,
+  -llvm-header-guard,
+  -llvm-include-order,
+  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-magic-numbers,
+  -readability-named-parameter
 
 WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
 
 CheckOptions:
   - key: readability-function-size.LineThreshold
@@ -24,7 +47,7 @@ CheckOptions:
   - key: readability-identifier-naming.MemberCase
     value: 'lower_case'
   - key: readability-identifier-naming.MethodCase
-    value: 'CamelCase'
+    value: 'lower_case'
   - key: readability-identifier-naming.NamespaceCase
     value: 'lower_case'
   - key: readability-identifier-naming.ParameterCase
@@ -36,7 +59,7 @@ CheckOptions:
   - key: readability-identifier-naming.StructCase
     value: 'CamelCase'
   - key: readability-identifier-naming.TypeAliasCase
-    value: 'CamelCase'
+    value: 'lower_case'
   - key: readability-identifier-naming.TypedefCase
     value: 'CamelCase'
   - key: readability-identifier-naming.TypeTemplateParameterCase
@@ -44,7 +67,7 @@ CheckOptions:
   - key: readability-identifier-naming.UnionCase
     value: 'CamelCase'
   - key: readability-identifier-naming.ValueTemplateParameterCase
-    value: 'lower_case'
+    value: 'CamelCase'
   - key: readability-identifier-naming.VariableCase
     value: 'lower_case'
   - key: readability-magic-numbers.IgnoredIntegerValues

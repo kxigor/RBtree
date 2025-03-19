@@ -38,18 +38,39 @@ add_executable(rbtree ${SRCS_MAIN})
 #=============================== Tests =================================
 enable_testing()
 
-# Adding gtest
+# Google Tests Base
 find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
 
-set(SRCS_STRESS_TESTS src/tests/GoogleStressTests.cpp)
-add_executable(stress_tests ${SRCS_STRESS_TESTS})
+function(add_google_test TEST_NAME TEST_SRC)
+    add_executable(${TEST_NAME} ${TEST_SRC})
 
-target_include_directories(stress_tests SYSTEM PUBLIC Threads::Threads ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
-set_property(TARGET stress_tests PROPERTY RUNTIME_OUTPUT_DIRECTORY "")
+    target_include_directories(${TEST_NAME} SYSTEM PUBLIC
+        Threads::Threads
+        ${GTEST_INCLUDE_DIRS}
+        ${GMOCK_INCLUDE_DIRS}
+    )
 
-target_link_libraries(stress_tests ${GTEST_LIBRARIES})
-add_test(NAME GoogleStressTests COMMAND stress_tests)
+    set_property(
+        TARGET ${TEST_NAME} 
+        PROPERTY RUNTIME_OUTPUT_DIRECTORY ""
+    )
+
+    target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES})
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+endfunction()
+
+# Adding StateBased Tests
+add_google_test(
+    GoogleStateBasedTests
+    src/tests/GoogleStateBasedExampleDrivenTests.cpp
+)
+
+# Adding Stress Tests
+add_google_test(
+    GoogleStressTests
+    src/tests/GoogleStressTests.cpp
+)
 
 # Adding format test
 set(CLANG_FORMAT_SCRIPT src/tests/clang_format_tests.sh)

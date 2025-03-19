@@ -48,8 +48,8 @@ class RBtreeValidator
 
   friend std::ostream& operator<<(std::ostream& out,
                                   const RBtreeValidator& validator) {
-    out << std::setw(kMaxMessageLength) << std::left
-        << "Number of errors" << ": " <<validator.errors_.count() << "\n";
+    out << std::setw(kMaxMessageLength) << std::left << "Number of errors"
+        << ": " << validator.errors_.count() << "\n";
     for (size_t i = 0; i < Count; ++i) {
       out << std::setw(kMaxMessageLength) << std::left << errorMessages[i]
           << ": ";
@@ -149,7 +149,7 @@ class RBtreeValidator
   }
 
   bool check_nil() const {
-    const node_type* NIL = this->get_NIL();
+    const node_type* NIL = this->get_nil();
     bool result = true;
 
     result &= NIL->is_black();

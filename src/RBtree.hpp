@@ -52,8 +52,8 @@ class RBtree {
   struct BasicNode {
     enum class Color : bool { Red, Black };
 
-    static constexpr BasicNode* BasicNode::*another_direction(
-        BasicNode* BasicNode::*direction) noexcept {
+    static constexpr BasicNode* BasicNode::* another_direction(
+        BasicNode* BasicNode::* direction) noexcept {
       return (direction == &BasicNode::left) ? &BasicNode::right
                                              : &BasicNode::left;
     }
@@ -106,11 +106,19 @@ class RBtree {
       return get_most_impl<&BasicNode::left>();
     }
 
+    const BasicNode* get_most_left() const noexcept {
+      return const_cast<BasicNode*>(this)->get_most_left();
+    }
+
     BasicNode* get_most_right() noexcept {
       return get_most_impl<&BasicNode::right>();
     }
 
-    template <BasicNode* BasicNode::*direction>
+    const BasicNode* get_most_right() const noexcept {
+      return const_cast<BasicNode*>(this)->get_most_right();
+    }
+
+    template <BasicNode* BasicNode::* direction>
     BasicNode* get_most_impl() noexcept {
       if (is_nil()) {
         return this;
@@ -138,21 +146,21 @@ class RBtree {
     value_type val;
   };
 
-  using basic_node_type = BasicNode;
-  using basic_node_allocator_type = typename std::allocator_traits<
-      allocator_type>::template rebind_alloc<basic_node_type>;
-  using basic_node_allocator_traits =
-      std::allocator_traits<basic_node_allocator_type>;
-
-  using node_type = Node;
+  using node_type = BasicNode;
   using node_allocator_type = typename std::allocator_traits<
       allocator_type>::template rebind_alloc<node_type>;
-  using node_allocator_traits = std::allocator_traits<node_allocator_type>;
+  using node_allocator_traits =
+      std::allocator_traits<node_allocator_type>;
 
+  using valued_node_type = Node;
+  using valued_node_allocator_type = typename std::allocator_traits<
+      allocator_type>::template rebind_alloc<valued_node_type>;
+  using valued_node_allocator_traits = std::allocator_traits<valued_node_allocator_type>;
+
+  using valued_node_pat = propagate_assignment_traits<valued_node_allocator_type>;
   using node_pat = propagate_assignment_traits<node_allocator_type>;
-  using basic_node_pat = propagate_assignment_traits<basic_node_allocator_type>;
 
-  using Color = typename basic_node_type::Color;
+  using Color = typename node_type::Color;
 
  public:
   /*========================= Member functions ========================*/
@@ -284,10 +292,10 @@ class RBtree {
 
   template <class... Args>
   std::pair<iterator, bool> emplace(Args&&... args) {
-    node_type* new_node = allocate();
+    valued_node_type* new_node = allocate();
     construct(new_node, NIL_, NIL_, NIL_, Color::Red, false,
               std::forward<Args>(args)...);
-    return insert(static_cast<basic_node_type*>(new_node));
+    return insert(static_cast<node_type*>(new_node));
   }
 
   template <class... Args>
@@ -373,8 +381,7 @@ class RBtree {
   template <typename Pred>
   requires std::is_nothrow_invocable_r_v<bool, Pred,
                                          typename RBtree::value_type>
-      size_type erase_if(Pred pred)
-  noexcept {
+  size_type erase_if(Pred pred) noexcept {
     RBtree::size_type result = 0;
     iterator current = begin();
     iterator last = end();
@@ -393,8 +400,8 @@ class RBtree {
  private:
   template <bool (RBtree::*compare)(const key_type&, const key_type&) const>
   iterator bound_impl(const key_type& key) {
-    basic_node_type* found = NIL_;
-    basic_node_type* current = root_;
+    node_type* found = NIL_;
+    node_type* current = root_;
 
     while (current->is_not_nil()) {
       if ((this->*compare)(current->get_key(), key)) {
@@ -409,10 +416,10 @@ class RBtree {
   }
 
   /*TODO: improve codestyle*/
-  std::pair<iterator, bool> insert(basic_node_type* new_node) {
+  std::pair<iterator, bool> insert(node_type* new_node) {
     assert(NIL_->right == root_->get_most_left());
-    basic_node_type* prev = NIL_;
-    basic_node_type* current = root_;
+    node_type* prev = NIL_;
+    node_type* current = root_;
 
     while (current->is_not_nil()) {
       prev = current;
@@ -446,31 +453,31 @@ class RBtree {
     return {new_node, true};
   }
 
-  void update_begin_on_insert(basic_node_type* insert_node) {
+  void update_begin_on_insert(node_type* insert_node) {
     if (NIL_->right->is_nil() ||
         compare_less(insert_node->get_key(), NIL_->right->get_key())) {
       NIL_->right = insert_node;
     }
   }
 
-  void insert_fixup(basic_node_type* current) noexcept {
+  void insert_fixup(node_type* current) noexcept {
     while (current->parent->is_red()) {
       if (current->parent->is_left()) {
-        current = insert_fixup_impl<&basic_node_type::left>(current);
+        current = insert_fixup_impl<&node_type::left>(current);
       } else /*if (current->parent->is_right())*/ {
-        current = insert_fixup_impl<&basic_node_type::right>(current);
+        current = insert_fixup_impl<&node_type::right>(current);
       }
     }
     root_->color = Color::Black;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
-                basic_node_type::another_direction(direction)>
-  basic_node_type* insert_fixup_impl(basic_node_type* current) noexcept {
-    basic_node_type* parent = current->parent;
-    basic_node_type* grandparent = parent->parent;
-    basic_node_type* uncle = grandparent->*another_direction;
+  template <node_type* node_type::* direction,
+            node_type* node_type::* another_direction =
+                node_type::another_direction(direction)>
+  node_type* insert_fixup_impl(node_type* current) noexcept {
+    node_type* parent = current->parent;
+    node_type* grandparent = parent->parent;
+    node_type* uncle = grandparent->*another_direction;
     if (uncle->is_red()) {
       parent->color = Color::Black;
       uncle->color = Color::Black;
@@ -488,9 +495,9 @@ class RBtree {
     return current;
   }
 
-  void erase(basic_node_type* delete_node) noexcept {
-    basic_node_type* instead_node = nullptr;
-    basic_node_type* restored_node = nullptr;
+  void erase(node_type* delete_node) noexcept {
+    node_type* instead_node = nullptr;
+    node_type* restored_node = nullptr;
 
     if (delete_node->left->is_nil() || delete_node->right->is_nil()) {
       instead_node = delete_node;
@@ -539,9 +546,9 @@ class RBtree {
     decrease_size(1);
   }
 
-  void update_begin_on_erase(basic_node_type* delete_node,
-                             basic_node_type* instead_node,
-                             basic_node_type* restored_node) noexcept {
+  void update_begin_on_erase(node_type* delete_node,
+                             node_type* instead_node,
+                             node_type* restored_node) noexcept {
     if (NIL_->right == delete_node) {
       if (instead_node == delete_node) {
         if (restored_node->is_nil()) {
@@ -555,24 +562,24 @@ class RBtree {
     }
   }
 
-  void erase_fixup(basic_node_type* restored_node) noexcept {
+  void erase_fixup(node_type* restored_node) noexcept {
     while (restored_node != root_ && restored_node->is_black()) {
       if (restored_node->is_left()) {
-        restored_node = erase_fixup_impl<&basic_node_type::left>(restored_node);
+        restored_node = erase_fixup_impl<&node_type::left>(restored_node);
       } else {
         restored_node =
-            erase_fixup_impl<&basic_node_type::right>(restored_node);
+            erase_fixup_impl<&node_type::right>(restored_node);
       }
     }
     restored_node->color = Color::Black;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
-                basic_node_type::another_direction(direction)>
-  basic_node_type* erase_fixup_impl(basic_node_type* current) noexcept {
-    basic_node_type* parent = current->parent;
-    basic_node_type* brother = parent->*another_direction;
+  template <node_type* node_type::* direction,
+            node_type* node_type::* another_direction =
+                node_type::another_direction(direction)>
+  node_type* erase_fixup_impl(node_type* current) noexcept {
+    node_type* parent = current->parent;
+    node_type* brother = parent->*another_direction;
     if (brother->is_red()) {
       brother->color = Color::Black;
       parent->color = Color::Red;
@@ -599,11 +606,11 @@ class RBtree {
     return current;
   }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
-                basic_node_type::another_direction(direction)>
-  void rotate_impl(basic_node_type* node) noexcept {
-    basic_node_type* child = node->*another_direction;
+  template <node_type* node_type::* direction,
+            node_type* node_type::* another_direction =
+                node_type::another_direction(direction)>
+  void rotate_impl(node_type* node) noexcept {
+    node_type* child = node->*another_direction;
 
     if (node->parent->is_nil()) {
       update_root(child);
@@ -621,32 +628,32 @@ class RBtree {
     child->*direction = node;
   }
 
-  void update_root(basic_node_type* new_root) noexcept {
+  void update_root(node_type* new_root) noexcept {
     root_ = new_root;
     NIL_->left = new_root;
   }
 
-  void annihilate(basic_node_type* object) noexcept {
+  void annihilate(node_type* object) noexcept {
     assert(object->is_not_nil());
-    node_type* currect_pointer = static_cast<node_type*>(object);
+    valued_node_type* currect_pointer = static_cast<valued_node_type*>(object);
     destroy(currect_pointer);
     deallocate(currect_pointer);
   }
 
-  node_type* allocate() { return node_allocator_traits::allocate(alloc_, 1); }
+  valued_node_type* allocate() { return valued_node_allocator_traits::allocate(alloc_, 1); }
 
-  void deallocate(node_type* object) noexcept {
-    node_allocator_traits::deallocate(alloc_, object, 1);
+  void deallocate(valued_node_type* object) noexcept {
+    valued_node_allocator_traits::deallocate(alloc_, object, 1);
   }
 
   template <typename... Args>
-  void construct(node_type* object, Args&&... args) {
-    node_allocator_traits::construct(alloc_, object,
+  void construct(valued_node_type* object, Args&&... args) {
+    valued_node_allocator_traits::construct(alloc_, object,
                                      std::forward<Args>(args)...);
   }
 
-  void destroy(node_type* object) noexcept {
-    node_allocator_traits::destroy(alloc_, object);
+  void destroy(valued_node_type* object) noexcept {
+    valued_node_allocator_traits::destroy(alloc_, object);
   }
 
   bool compare_less(const key_type& lhs, const key_type& rhs) const {
@@ -674,21 +681,21 @@ class RBtree {
   void decrease_size(std::size_t offset) noexcept { size_ -= offset; }
 
   void construct_nil() {
-    NIL_ = basic_node_allocator_traits::allocate(basic_alloc_, 1);
+    NIL_ = node_allocator_traits::allocate(basic_alloc_, 1);
     std::construct_at(NIL_, NIL_, NIL_, NIL_, Color::Black, true);
     root_ = NIL_;
   }
 
   void destroy_nil() noexcept {
     std::destroy_at(NIL_);
-    basic_node_allocator_traits::deallocate(basic_alloc_, NIL_, 1);
+    node_allocator_traits::deallocate(basic_alloc_, NIL_, 1);
   }
 
-  node_allocator_type alloc_{};
-  basic_node_allocator_type basic_alloc_{};
+  valued_node_allocator_type alloc_{};
+  node_allocator_type basic_alloc_{};
 
-  basic_node_type* NIL_{};
-  basic_node_type* root_{};
+  node_type* NIL_{};
+  node_type* root_{};
   key_compare compare_{};
   size_type size_{};
 };
@@ -697,10 +704,9 @@ template <class Key, class T, class Compare, class Allocator>
 template <bool IsConst>
 class RBtree<Key, T, Compare, Allocator>::Iterator {
   /*======================== Usings and Structures =========================*/
-  friend class List;
   using rbtree = RBtree<Key, T, Compare, Allocator>;
-  using basic_node_type = rbtree::basic_node_type;
   using node_type = rbtree::node_type;
+  using valued_node_type = rbtree::valued_node_type;
 
  public:
   using difference_type = ptrdiff_t;
@@ -712,7 +718,7 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   /*============================ Constructors ==============================*/
   Iterator() = default;
 
-  Iterator(basic_node_type* node) : current_node_(node) {}
+  Iterator(node_type* node) : current_node_(node) {}
 
   Iterator(const Iterator& /*unused*/) = default;
 
@@ -720,11 +726,11 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   Iterator& operator=(const Iterator& /*unused*/) = default;
 
   Iterator& operator++() {
-    return operator_unary_step_impl<&basic_node_type::left>();
+    return operator_unary_step_impl<&node_type::left>();
   }
 
   Iterator& operator--() {
-    return operator_unary_step_impl<&basic_node_type::right>();
+    return operator_unary_step_impl<&node_type::right>();
   }
 
   Iterator operator++(int) {
@@ -758,11 +764,16 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
  private:
   friend RBtree;
 
+#ifdef DEBUG_
+  template <typename K, typename V, typename C, typename A>
+  friend class RBtreeFriendMediator;
+#endif
+
   operator Iterator<false>() const { return Iterator<false>(current_node_); }
 
-  template <basic_node_type* basic_node_type::*direction,
-            basic_node_type* basic_node_type::*another_direction =
-                basic_node_type::another_direction(direction)>
+  template <node_type* node_type::* direction,
+            node_type* node_type::* another_direction =
+                node_type::another_direction(direction)>
   Iterator& operator_unary_step_impl() {
     if ((current_node_->*another_direction)->is_not_nil()) {
       current_node_ = current_node_->*another_direction;
@@ -773,7 +784,7 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
     return *this;
   }
 
-  template <basic_node_type* basic_node_type::*direction>
+  template <node_type* node_type::* direction>
   void slide_up_while_not_impl() {
     while (current_node_->parent->*direction == current_node_ &&
            current_node_->parent->is_not_nil() && current_node_->is_not_nil()) {
@@ -783,5 +794,5 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   }
 
   /*================================ Fields ================================*/
-  basic_node_type* current_node_{nullptr};
+  node_type* current_node_{nullptr};
 };
