@@ -22,7 +22,19 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-avoid-const-params-in-decls,
   -readability-magic-numbers,
-  -readability-named-parameter
+  -readability-named-parameter,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -modernize-raw-string-literal,
+  -readability-use-anyofallof,
+  -google-explicit-constructor,
+  -misc-non-private-member-variables-in-classes,
+  -hicpp-noexcept-move,
+  -performance-noexcept-move-constructor,
+  -hicpp-explicit-conversions,
+  -cppcoreguidelines-rvalue-reference-param-not-moved,
+  -cppcoreguidelines-noexcept-move-operations,
+  -cppcoreguidelines-avoid-const-or-ref-data-members
 
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
@@ -43,7 +55,7 @@ CheckOptions:
   - key: readability-identifier-naming.EnumConstantCase
     value: 'CamelCase'
   - key: readability-identifier-naming.FunctionCase
-    value: 'CamelCase'
+    value: 'lower_case'
   - key: readability-identifier-naming.MemberCase
     value: 'lower_case'
   - key: readability-identifier-naming.MethodCase

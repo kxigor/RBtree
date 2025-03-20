@@ -1,36 +1,35 @@
 #include <gtest/gtest.h>
 
+#include <utility>
+
 #include "RBtreeBuilder.hpp"
 #include "RBtreeValidator.hpp"
 #include "RBtreeVizualizer.hpp"
 
-/*In fact, it doesn't matter where we get this type from.*/
-using color_type =
-    RBtreeBuilder<int, int, std::less<int>,
-                  std::allocator<std::pair<const int, int>>>::color_type;
-
-using direction_type =
-    RBtreeBuilder<int, int, std::less<int>,
-                  std::allocator<std::pair<const int, int>>>::direction_type;
+using tree_type = RBtree<int, int>;
+using validator_type = decltype(RBtreeValidator(std::declval<tree_type&>()));
+using builder_type = decltype(RBtreeBuilder(std::declval<tree_type&>()));
+using color_type = builder_type::color_type;
+using direction_type = builder_type::direction_type;
 
 TEST(INSERT, EdgeCase_InsertToEmptyTree) {
-  RBtree<int, int> tree;
+  tree_type tree;
 
   tree.emplace(42, 0);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(42, color_type::Black).finalize();
 
   ASSERT_EQ(tree, expected_tree);
 }
 
 TEST(INSERT, Case1_RedUncle_RecolorRequired) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Red, 50, direction_type::Left)
@@ -39,11 +38,11 @@ TEST(INSERT, Case1_RedUncle_RecolorRequired) {
 
   tree.emplace(20, 0);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
       .add_node(70, color_type::Black, 50, direction_type::Right)
@@ -54,8 +53,8 @@ TEST(INSERT, Case1_RedUncle_RecolorRequired) {
 }
 
 TEST(INSERT, Case2_BlackUncle_LeftLeftRotation) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Red, 50, direction_type::Left)
@@ -63,11 +62,11 @@ TEST(INSERT, Case2_BlackUncle_LeftLeftRotation) {
 
   tree.emplace(20, 0);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(30, color_type::Black)
       .add_node(20, color_type::Red, 30, direction_type::Left)
       .add_node(50, color_type::Red, 30, direction_type::Right)
@@ -77,8 +76,8 @@ TEST(INSERT, Case2_BlackUncle_LeftLeftRotation) {
 }
 
 TEST(INSERT, Case3_BlackUncle_LeftRightRotation) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Red, 50, direction_type::Left)
@@ -86,11 +85,11 @@ TEST(INSERT, Case3_BlackUncle_LeftRightRotation) {
 
   tree.emplace(40, 0);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(40, color_type::Black)
       .add_node(30, color_type::Red, 40, direction_type::Left)
       .add_node(50, color_type::Red, 40, direction_type::Right)
@@ -100,24 +99,24 @@ TEST(INSERT, Case3_BlackUncle_LeftRightRotation) {
 }
 
 TEST(ERASE, EdgeCase_EraseLastElement) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(0, color_type::Black).finalize();
 
   tree.erase(0);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
+  tree_type expected_tree;
 
   ASSERT_EQ(tree, expected_tree);
 }
 
 TEST(ERASE, Case1_SiblingIsRed) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Red, 50, direction_type::Left)
@@ -128,11 +127,11 @@ TEST(ERASE, Case1_SiblingIsRed) {
 
   tree.erase(20);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
       .add_node(70, color_type::Black, 50, direction_type::Right)
@@ -143,8 +142,8 @@ TEST(ERASE, Case1_SiblingIsRed) {
 }
 
 TEST(ERASE, Case2_SiblingIsBlackWithBlackChildren) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
       .add_node(70, color_type::Black, 50, direction_type::Right)
@@ -156,11 +155,11 @@ TEST(ERASE, Case2_SiblingIsBlackWithBlackChildren) {
 
   tree.erase(20);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
       .add_node(70, color_type::Red, 50, direction_type::Right)
@@ -173,8 +172,8 @@ TEST(ERASE, Case2_SiblingIsBlackWithBlackChildren) {
 }
 
 TEST(ERASE, Case3_SiblingIsBlackWithRedLeftChild) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
@@ -189,11 +188,11 @@ TEST(ERASE, Case3_SiblingIsBlackWithRedLeftChild) {
 
   tree.erase(30);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(60, color_type::Black)
       .add_node(50, color_type::Black, 60, direction_type::Left)
       .add_node(70, color_type::Black, 60, direction_type::Right)
@@ -208,8 +207,8 @@ TEST(ERASE, Case3_SiblingIsBlackWithRedLeftChild) {
 }
 
 TEST(ERASE, Case4_SiblingIsBlackWithRedRightChild) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
@@ -224,11 +223,11 @@ TEST(ERASE, Case4_SiblingIsBlackWithRedRightChild) {
 
   tree.erase(30);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(70, color_type::Black)
       .add_node(50, color_type::Black, 70, direction_type::Left)
       .add_node(80, color_type::Black, 70, direction_type::Right)
@@ -243,8 +242,8 @@ TEST(ERASE, Case4_SiblingIsBlackWithRedRightChild) {
 }
 
 TEST(ERASE, Case5_NodeIsLeftChildAndSiblingHasRedRightChild) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(30, color_type::Black, 50, direction_type::Left)
@@ -254,11 +253,11 @@ TEST(ERASE, Case5_NodeIsLeftChildAndSiblingHasRedRightChild) {
 
   tree.erase(30);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(70, color_type::Black)
       .add_node(50, color_type::Black, 70, direction_type::Left)
       .add_node(80, color_type::Black, 70, direction_type::Right)
@@ -268,8 +267,8 @@ TEST(ERASE, Case5_NodeIsLeftChildAndSiblingHasRedRightChild) {
 }
 
 TEST(ERASE, Case6_NodeIsRightChildAndSiblingHasRedLeftChild) {
-  RBtree<int, int> tree;
-  RBtreeBuilder builder(tree);
+  tree_type tree;
+  builder_type builder(tree);
 
   builder.root(50, color_type::Black)
       .add_node(70, color_type::Black, 50, direction_type::Right)
@@ -279,11 +278,11 @@ TEST(ERASE, Case6_NodeIsRightChildAndSiblingHasRedLeftChild) {
 
   tree.erase(30);
 
-  RBtreeValidator validator(tree);
-  ASSERT_TRUE(validator.validate());
+  validator_type validator(tree);
+  ASSERT_TRUE(validator.validate()) << validator;
 
-  RBtree<int, int> expected_tree;
-  RBtreeBuilder expected_builder(expected_tree);
+  tree_type expected_tree;
+  builder_type expected_builder(expected_tree);
   expected_builder.root(50, color_type::Black)
       .add_node(20, color_type::Black, 50, direction_type::Left)
       .add_node(70, color_type::Black, 50, direction_type::Right)

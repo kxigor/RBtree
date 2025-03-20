@@ -74,7 +74,7 @@ TEST(RBTREE, EMPTY) {
 
 TEST(RBTREE, GETALLOCATOR) {
   RBtree<int, int> tree;
-  tree.get_allocator();
+  auto alloc = tree.get_allocator();
 }
 
 TEST(RBTREE, ELEMENT_ACCESS) {
@@ -83,7 +83,7 @@ TEST(RBTREE, ELEMENT_ACCESS) {
     if (i & 1) {
       ASSERT_EQ(tree.at(i), i);
     } else {
-      ASSERT_THROW(tree.at(i), std::out_of_range);
+      ASSERT_THROW(std::ignore = tree.at(i), std::out_of_range);
     }
   }
   InsertSequence(tree, 0, kInsertSize, 2);
@@ -93,12 +93,10 @@ TEST(RBTREE, ELEMENT_ACCESS) {
 }
 
 TEST(RBTREE, INSERT_SORTING) {
-  DO_ATTEMPTS(kSortingInsertAttemps, 
-    RBtree<int, int> tree = InitShuffledSequence(0, kShuffledInsertSize);
-    for (int i = 0; i < kShuffledInsertSize; ++i) {
-      ASSERT_EQ(tree[i], i);
-    }
-  )
+  DO_ATTEMPTS(
+      kSortingInsertAttemps,
+      RBtree<int, int> tree = InitShuffledSequence(0, kShuffledInsertSize);
+      for (int i = 0; i < kShuffledInsertSize; ++i) { ASSERT_EQ(tree[i], i); })
 }
 
 TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
@@ -108,108 +106,90 @@ TEST(RBTREE, ITERATOR_BEGIN_END_EQ) {
 
 TEST(RBTREE, ITERATOR_FOLLOW_FORWARD) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    auto it = tree.begin();
-    for (int i = 0; i < kShuffledInsertSize; ++i) {
-      ASSERT_EQ(it->first, i);
-      ASSERT_EQ(it->second, i);
-      ++it;
-    }
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      auto it = tree.begin(); for (int i = 0; i < kShuffledInsertSize; ++i) {
+        ASSERT_EQ(it->first, i);
+        ASSERT_EQ(it->second, i);
+        ++it;
+      } tree.clear();)
 }
 
 TEST(RBTREE, ITERATOR_FOLLOW_BACKWARD) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    auto it = tree.end();
-    for (int i = kShuffledInsertSize - 1; i > 0; --i) {
-      --it;
-      ASSERT_EQ(it->first, i);
-      ASSERT_EQ(it->second, i);
-    }
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      auto it = tree.end(); for (int i = kShuffledInsertSize - 1; i > 0; --i) {
+        --it;
+        ASSERT_EQ(it->first, i);
+        ASSERT_EQ(it->second, i);
+      } tree.clear();)
 }
 
 TEST(RBTREE, ITERATOR_FORWARD_BACKWARD) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    auto it = tree.begin();
-    for (int i = 0; i < kShuffledInsertSize / 2; ++i) {
-      ASSERT_EQ(it->first, i);
-      ASSERT_EQ(it->second, i);
-      ++it;
-    }
-    for (int i = kShuffledInsertSize / 2; i > 0; --i) {
-      ASSERT_EQ(it->first, i);
-      ASSERT_EQ(it->second, i);
-      --it;
-    }
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      auto it = tree.begin();
+      for (int i = 0; i < kShuffledInsertSize / 2; ++i) {
+        ASSERT_EQ(it->first, i);
+        ASSERT_EQ(it->second, i);
+        ++it;
+      } for (int i = kShuffledInsertSize / 2; i > 0; --i) {
+        ASSERT_EQ(it->first, i);
+        ASSERT_EQ(it->second, i);
+        --it;
+      } tree.clear();)
 }
 
 TEST(RBTREE, ITERATOR_PREV_END) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts, 
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    ASSERT_EQ(std::prev(tree.end())->first, kShuffledInsertSize - 1);
-    ASSERT_EQ(std::prev(tree.end())->second, kShuffledInsertSize - 1);
-    tree.clear();
-  );
+  DO_ATTEMPTS(kShuffleAttempts,
+              InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+              ASSERT_EQ(std::prev(tree.end())->first, kShuffledInsertSize - 1);
+              ASSERT_EQ(std::prev(tree.end())->second, kShuffledInsertSize - 1);
+              tree.clear(););
 }
 
 TEST(RBTREE, ITERATOR_FORWARD_RANGE_LOOP) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts, 
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    int expected_key = 0;
-    for (const auto& element : tree) {
-      ASSERT_EQ(element.first, expected_key);
-      ASSERT_EQ(element.second, expected_key);
-      ++expected_key;
-    }
-    expected_key = 0;
-    for (const auto& element : const_cast<const decltype(tree)&>(tree)) {
-      ASSERT_EQ(element.first, expected_key);
-      ASSERT_EQ(element.second, expected_key);
-      ++expected_key;
-    }
-    tree.clear();
-  );
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      int expected_key = 0; for (const auto& element : tree) {
+        ASSERT_EQ(element.first, expected_key);
+        ASSERT_EQ(element.second, expected_key);
+        ++expected_key;
+      } expected_key = 0;
+      for (const auto& element : const_cast<const decltype(tree)&>(tree)) {
+        ASSERT_EQ(element.first, expected_key);
+        ASSERT_EQ(element.second, expected_key);
+        ++expected_key;
+      } tree.clear(););
 }
 
 TEST(RBTREE, ITERATOR_BACKWARD_RANGE_LOOP) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts, 
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    int expected_key = kShuffledInsertSize;
-    for (const auto& element : std::views::reverse(tree)) {
-      --expected_key;
-      ASSERT_EQ(element.first, expected_key);
-      ASSERT_EQ(element.second, expected_key);
-    }
-    expected_key = kShuffledInsertSize;
-    for (const auto& element : std::views::reverse(const_cast<const decltype(tree)&>(tree))) {
-      --expected_key;
-      ASSERT_EQ(element.first, expected_key);
-      ASSERT_EQ(element.second, expected_key);
-    }
-    tree.clear();
-  );
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      int expected_key = kShuffledInsertSize;
+      for (const auto& element : std::views::reverse(tree)) {
+        --expected_key;
+        ASSERT_EQ(element.first, expected_key);
+        ASSERT_EQ(element.second, expected_key);
+      } expected_key = kShuffledInsertSize;
+      for (const auto& element : std::views::reverse(
+               const_cast<const decltype(tree)&>(tree))) {
+        --expected_key;
+        ASSERT_EQ(element.first, expected_key);
+        ASSERT_EQ(element.second, expected_key);
+      } tree.clear(););
 }
 
 TEST(RBTREE, CLEAR) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts, 
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    tree.clear();
-    ASSERT_TRUE(tree.empty());
-  );
+  DO_ATTEMPTS(kShuffleAttempts,
+              InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+              tree.clear(); ASSERT_TRUE(tree.empty()););
 }
 
 TEST(RBTREE, COUNT) {
@@ -223,17 +203,14 @@ TEST(RBTREE, COUNT) {
 
 TEST(RBTREE, FIND) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    for (int i = 0; i < kShuffledInsertSize; ++i) {
-      auto it = tree.find(i);
-      ASSERT_NE(it, tree.end());
-      ASSERT_EQ(it->second, i);
-    }
-    ASSERT_EQ(tree.find(-1), tree.end());
-    ASSERT_EQ(tree.find(kInsertSize), tree.end());
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      for (int i = 0; i < kShuffledInsertSize; ++i) {
+        auto it = tree.find(i);
+        ASSERT_NE(it, tree.end());
+        ASSERT_EQ(it->second, i);
+      } ASSERT_EQ(tree.find(-1), tree.end());
+      ASSERT_EQ(tree.find(kInsertSize), tree.end()); tree.clear();)
 }
 
 TEST(RBTREE, CONTAINS) {
@@ -340,72 +317,61 @@ TEST(RBTREE, SPACESHIP_OPERATOR) {
 
 TEST(RBTREE, ERASE) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    for (int i = 0; i < kShuffledInsertSize; ++i) {
-      auto it = tree.find(i);
-      ASSERT_EQ(it, tree.begin());
-      ASSERT_NE(it, tree.end());
-      tree.erase(it);
-      ASSERT_FALSE(tree.contains(i));
-      ASSERT_EQ(tree.size(), kShuffledInsertSize - 1 - i);
-    }
-    ASSERT_TRUE(tree.empty());
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      for (int i = 0; i < kShuffledInsertSize; ++i) {
+        auto it = tree.find(i);
+        ASSERT_EQ(it, tree.begin());
+        ASSERT_NE(it, tree.end());
+        tree.erase(it);
+        ASSERT_FALSE(tree.contains(i));
+        ASSERT_EQ(tree.size(), kShuffledInsertSize - 1 - i);
+      } ASSERT_TRUE(tree.empty());)
 }
 
 TEST(RBTREE, ERASE_MIDDLE) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    int ctr = 0;
-    auto begin = tree.find(0);
-    for (int i = kLeftBorder; i < kRightBorder; ++i, ++ctr) {
-      auto it = tree.find(i);
-      ASSERT_EQ(tree.begin(), begin);
-      ASSERT_NE(it, tree.end());
-      tree.erase(it);
-      ASSERT_FALSE(tree.contains(i));
-      ASSERT_EQ(tree.size(), kShuffledInsertSize - ctr - 1);
-    }
-    ASSERT_EQ(tree.size(), kShuffledInsertSize - ctr);
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      int ctr = 0; auto begin = tree.find(0);
+      for (int i = kLeftBorder; i < kRightBorder; ++i, ++ctr) {
+        auto it = tree.find(i);
+        ASSERT_EQ(tree.begin(), begin);
+        ASSERT_NE(it, tree.end());
+        tree.erase(it);
+        ASSERT_FALSE(tree.contains(i));
+        ASSERT_EQ(tree.size(), kShuffledInsertSize - ctr - 1);
+      } ASSERT_EQ(tree.size(), kShuffledInsertSize - ctr);
+      tree.clear();)
 }
 
 TEST(RBTREE, ERASE_BY_KEY) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    for (int i = 0; i < kShuffledInsertSize; ++i) {
-      ASSERT_TRUE(tree.contains(i));
-      tree.erase(i);
-      ASSERT_FALSE(tree.contains(i));
-      ASSERT_EQ(tree.size(), kShuffledInsertSize - 1 - i);
-    }
-    ASSERT_TRUE(tree.empty());
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      for (int i = 0; i < kShuffledInsertSize; ++i) {
+        ASSERT_TRUE(tree.contains(i));
+        tree.erase(i);
+        ASSERT_FALSE(tree.contains(i));
+        ASSERT_EQ(tree.size(), kShuffledInsertSize - 1 - i);
+      } ASSERT_TRUE(tree.empty());)
 }
 
 TEST(RBTREE, ERASE_RANGE) {
   RBtree<int, int> tree;
-  DO_ATTEMPTS(kShuffleAttempts,
-    InsertShuffledSequence(tree, 0, kShuffledInsertSize);
-    auto first = tree.find(kLeftBorder);
-    auto last = tree.find(kRightBorder);
-    tree.erase(first, last);
-    for (int i = kLeftBorder; i < kRightBorder; ++i) {
-      ASSERT_FALSE(tree.contains(i));
-    }
-    for (int i = 0; i < kLeftBorder; ++i) {
-      ASSERT_TRUE(tree.contains(i));
-    }
-    for (int i = kRightBorder; i < kShuffledInsertSize; ++i) {
-      ASSERT_TRUE(tree.contains(i));
-    }
-    ASSERT_EQ(tree.size(), kShuffledInsertSize - kRightBorder + kLeftBorder);
-    tree.clear();
-  )
+  DO_ATTEMPTS(
+      kShuffleAttempts, InsertShuffledSequence(tree, 0, kShuffledInsertSize);
+      auto first = tree.find(kLeftBorder); auto last = tree.find(kRightBorder);
+      tree.erase(first, last);
+      for (int i = kLeftBorder; i < kRightBorder; ++i) {
+        ASSERT_FALSE(tree.contains(i));
+      } for (int i = 0; i < kLeftBorder; ++i) {
+        ASSERT_TRUE(tree.contains(i));
+      } for (int i = kRightBorder; i < kShuffledInsertSize; ++i) {
+        ASSERT_TRUE(tree.contains(i));
+      } ASSERT_EQ(tree.size(),
+                  kShuffledInsertSize - kRightBorder + kLeftBorder);
+      tree.clear();)
 }
 
 TEST(RBTREE, ERASE_IF) {

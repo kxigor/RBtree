@@ -21,23 +21,25 @@ class RBtreeValidator
     InvalidColoring,
     NilNodeError,
     InvalidBST,
+    InvalidSize,
     /*Service enum*/
     Count
   };
 
-  static constexpr std::array<std::string_view, Count> errorMessages = {
+  static constexpr std::array<std::string_view, Count> kErrorMessages = {
       "Invalid parents",  "Cycles detected", "Invalid height",
-      "Invalid coloring", "Nil node error",  "Invalid BST properties"};
+      "Invalid coloring", "Invalid Nil",     "Invalid bst properties",
+      "Invalid size"};
 
-  static constexpr size_t computeMaxMessageLength() {
-    size_t maxLength = 0;
-    for (size_t i = 0; i < Count; ++i) {
-      maxLength = std::max(maxLength, errorMessages[i].length());
+  static constexpr size_t compute_max_message_length() {
+    size_t max_length = 0;
+    for (const auto& message : kErrorMessages) {
+      max_length = std::max(max_length, message.length());
     }
-    return maxLength;
+    return max_length;
   }
 
-  static constexpr size_t kMaxMessageLength = computeMaxMessageLength();
+  static constexpr size_t kMaxMessageLength = compute_max_message_length();
 
   using mediator_type = RBtreeFriendMediator<Key, T, Compare, Allocator>;
   using tree_type = typename mediator_type::tree_type;
@@ -48,10 +50,11 @@ class RBtreeValidator
 
   friend std::ostream& operator<<(std::ostream& out,
                                   const RBtreeValidator& validator) {
+    validator.validate();
     out << std::setw(kMaxMessageLength) << std::left << "Number of errors"
         << ": " << validator.errors_.count() << "\n";
     for (size_t i = 0; i < Count; ++i) {
-      out << std::setw(kMaxMessageLength) << std::left << errorMessages[i]
+      out << std::setw(kMaxMessageLength) << std::left << kErrorMessages.at(i)
           << ": ";
       if (validator.errors_.test(i)) {
         out << "FAIL";
@@ -64,7 +67,7 @@ class RBtreeValidator
   }
 
   bool check_parents() const {
-    for (const auto& node : get_BFS()) {
+    for (const auto& node : get_bfs()) {
       if (node->left->is_not_nil()) {
         if (node != node->left->parent) {
           return false;
@@ -81,7 +84,7 @@ class RBtreeValidator
   }
 
   bool check_cycles() const {
-    enum class NodeState : short { NotVisited, InProcess, Visited };
+    enum class NodeState : int8_t { NotVisited, InProcess, Visited };
 
     std::unordered_map<const node_type*, NodeState> node_state;
     std::vector<const node_type*> dfs;
@@ -119,7 +122,7 @@ class RBtreeValidator
   bool check_redblack_height() const {
     std::unordered_map<const node_type*, std::size_t> redblack_height;
 
-    for (const auto& node : get_reversed_BFS()) {
+    for (const auto& node : get_reversed_bfs()) {
       auto left_height = redblack_height[node->left];
       auto right_height = redblack_height[node->right];
       if (left_height != right_height) {
@@ -137,7 +140,7 @@ class RBtreeValidator
       return false;
     }
 
-    for (const auto& node : get_BFS()) {
+    for (const auto& node : get_bfs()) {
       if (node->is_red()) {
         if (node->left->is_red() || node->right->is_red()) {
           return false;
@@ -149,19 +152,20 @@ class RBtreeValidator
   }
 
   bool check_nil() const {
-    const node_type* NIL = this->get_nil();
+    const node_type* k_nil = this->get_nil();
     bool result = true;
 
-    result &= NIL->is_black();
-    result &= NIL->left == this->get_root();
-    result &= NIL->right == this->get_tree().begin();
-    result &= NIL->right == this->get_root()->get_most_left();
+    result &= k_nil->is_black();
+    result &= k_nil->left == this->get_root();
+    result &= k_nil->right ==
+              this->iterator_to_node_pointer(this->get_tree().begin());
+    result &= k_nil->right == this->get_root()->get_most_left();
 
     return result;
   }
 
-  bool check_BST_properties() const {
-    for (const auto& node : get_BFS()) {
+  bool check_bst_properties() const {
+    for (const auto& node : get_bfs()) {
       if (node->left->is_not_nil()) {
         if (this->get_compare()(node->get_key(), node->left->get_key())) {
           return false;
@@ -177,6 +181,10 @@ class RBtreeValidator
     return true;
   }
 
+  bool check_size() const {
+    return get_bfs().size() == this->get_tree().size();
+  }
+
   bool validate() const {
     errors_.reset();
 
@@ -185,7 +193,8 @@ class RBtreeValidator
     errors_.set(InvalidHeight, !check_redblack_height());
     errors_.set(InvalidColoring, !check_coloring());
     errors_.set(NilNodeError, !check_nil());
-    errors_.set(InvalidBST, !check_BST_properties());
+    errors_.set(InvalidBST, !check_bst_properties());
+    errors_.set(InvalidSize, !check_size());
 
     return errors_.none();
   }
@@ -193,7 +202,7 @@ class RBtreeValidator
   errors_type get_errors_log() const { return errors_; }
 
  private:
-  std::vector<const node_type*> get_BFS() const {
+  std::vector<const node_type*> get_bfs() const {
     std::vector<const node_type*> result;
     std::queue<const node_type*> nodes_to_visit;
     nodes_to_visit.push(this->get_root());
@@ -210,8 +219,8 @@ class RBtreeValidator
     return result;
   }
 
-  std::vector<const node_type*> get_reversed_BFS() const {
-    auto result = get_BFS();
+  std::vector<const node_type*> get_reversed_bfs() const {
+    auto result = get_bfs();
     std::ranges::reverse(result);
     return result;
   }

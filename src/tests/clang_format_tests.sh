@@ -1,21 +1,20 @@
 #!/bin/bash
 
-CLANGFORMAT="clang-format"
-CLANGFORMATARGS=(-style='{BasedOnStyle: Google, DerivePointerAlignment: false, PointerAlignment: Left, AlignOperands: true}')
-
+CLANG_FORMAT="clang-format"
+CLANG_FORMAT_VERSION=19
 exit_status=0
 
 for file in "$@"; do
     if [[ ! -f "$file" ]]; then
-        echo "Файл $file не существует."
+        echo "File $file does not exist."
         exit_status=1
         continue
     fi
 
-    $CLANGFORMAT "${CLANGFORMATARGS[@]}" "$file" >temp.format
+    $CLANG_FORMAT-$CLANG_FORMAT_VERSION "$file" >temp.format
 
     if ! diff -q "$file" temp.format >/dev/null; then
-        echo "Файлы $file не отформатирован:"
+        echo "File $file is not formatted correctly:"
         diff "$file" temp.format
         exit_status=1
     fi
@@ -24,9 +23,9 @@ for file in "$@"; do
 done
 
 if [[ $exit_status -ne 0 ]]; then
-    echo "Некоторые файлы не прошли проверку."
+    echo "Some files did not pass the formatting check."
     exit 1
 else
-    echo "Все файлы прошли проверку."
+    echo "All files passed the formatting check."
     exit 0
 fi

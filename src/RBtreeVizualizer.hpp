@@ -28,9 +28,6 @@ class RBtreeVisualizer
   static constexpr const char* kParentEdgeColor = "gray";
   static constexpr const char* kParentEdgeStyle = "dashed";
 
-  static constexpr const char* kDotFilename = "graph.dot";
-  static constexpr const char* kPngFilename = "graph.png";
-
   static constexpr const char* kGenerateErrorMessage =
       "Failed to generate PNG from DOT file.";
 
@@ -41,88 +38,89 @@ class RBtreeVisualizer
 
   using mediator_type::RBtreeFriendMediator;
 
-  RBtreeVisualizer(tree_type& tree) : mediator_type(tree) {
-    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  explicit RBtreeVisualizer(tree_type& tree) : mediator_type(tree) {
+    file_.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   }
 
-  void Visualize() {
-    file.open(kDotFilename);
+  void visualize(const std::string& dot_name, const std::string& png_name) {
+    file_.open(dot_name);
 
-    file << "digraph G {\n";
-    file << "  rankdir=TB;\n";
-    file << "  nodesep=" << kNodeSeparation << ";\n";
-    file << "  ranksep=" << kRankSeparation << ";\n";
-    file << "  node [shape=circle, style=filled, fontname=\"Arial\", "
-            "fontsize=14];\n";
+    file_ << "digraph G {\n";
+    file_ << "  rankdir=TB;\n";
+    file_ << "  nodesep=" << kNodeSeparation << ";\n";
+    file_ << "  ranksep=" << kRankSeparation << ";\n";
+    file_ << "  node [shape=circle, style=filled, fontname=\"Arial\", "
+             "fontsize=14];\n";
 
-    file << "  labelloc=\"t\";\n";
-    file << "  label=<<table border=\"1\" cellborder=\"0\" cellspacing=\"0\" "
-            "cellpadding=\"4\">\n";
-    file << "    <tr><td border=\"1\" bgcolor=\"" << kTitleBgColor << "\">\n";
-    file << "      <font color=\"" << kTitleFontColor << "\" point-size=\""
-         << kTitleFontSize << "\"><b>" << kTitleText << "</b></font>\n";
-    file << "    </td></tr>\n";
-    file << "  </table>>;\n";
+    file_ << "  labelloc=\"t\";\n";
+    file_ << "  label=<<table border=\"1\" cellborder=\"0\" cellspacing=\"0\" "
+             "cellpadding=\"4\">\n";
+    file_ << "    <tr><td border=\"1\" bgcolor=\"" << kTitleBgColor << "\">\n";
+    file_ << "      <font color=\"" << kTitleFontColor << "\" point-size=\""
+          << kTitleFontSize << "\"><b>" << kTitleText << "</b></font>\n";
+    file_ << "    </td></tr>\n";
+    file_ << "  </table>>;\n";
 
-    VisualizeRecursive(this->get_root());
+    visualize_recursive(this->get_root());
 
-    file << "}\n";
+    file_ << "}\n";
 
-    file.close();
-    ExecuteGenerateCommand();
+    file_.close();
+    execute_generate_command(dot_name, png_name);
   }
 
  private:
-  void VisualizeRecursive(const node_type* node) {
+  void visualize_recursive(const node_type* node) {
     if (node->is_nil()) {
       return;
     }
 
-    uintptr_t node_ptr = reinterpret_cast<uintptr_t>(node);
-    uintptr_t parent_ptr = reinterpret_cast<uintptr_t>(node->parent);
-    uintptr_t left_ptr = reinterpret_cast<uintptr_t>(node->left);
-    uintptr_t right_ptr = reinterpret_cast<uintptr_t>(node->right);
+    auto node_ptr = reinterpret_cast<uintptr_t>(node);
+    auto parent_ptr = reinterpret_cast<uintptr_t>(node->parent);
+    auto left_ptr = reinterpret_cast<uintptr_t>(node->left);
+    auto right_ptr = reinterpret_cast<uintptr_t>(node->right);
 
     std::string node_color = node->is_red() ? kRedNodeColor : kBlackNodeColor;
 
-    file << "  node" << node_ptr << " [label=\"key: " << node->get_key()
-         << "\nmapped: " << node->get_mapped() << "\naddr: " << std::hex
-         << node_ptr << std::dec << "\", fillcolor=" << node_color
-         << ", fontcolor=" << kNodeFontColor << "];\n";
+    file_ << "  node" << node_ptr << " [label=\"key: " << node->get_key()
+          << "\nmapped: " << node->get_mapped() << "\naddr: " << std::hex
+          << node_ptr << std::dec << "\", fillcolor=" << node_color
+          << ", fontcolor=" << kNodeFontColor << "];\n";
 
     if (node->left->is_not_nil()) {
-      file << "  node" << node_ptr << " -> node" << left_ptr
-           << " [color=" << kLeftEdgeColor
-           << ", label=\"left\", labelfloat=true];\n";
-      VisualizeRecursive(node->left);
+      file_ << "  node" << node_ptr << " -> node" << left_ptr
+            << " [color=" << kLeftEdgeColor
+            << ", label=\"left\", labelfloat=true];\n";
+      visualize_recursive(node->left);
     }
 
     if (node->right->is_not_nil()) {
-      file << "  node" << node_ptr << " -> node" << right_ptr
-           << " [color=" << kRightEdgeColor
-           << ", label=\"right\", labelfloat=true];\n";
-      VisualizeRecursive(node->right);
+      file_ << "  node" << node_ptr << " -> node" << right_ptr
+            << " [color=" << kRightEdgeColor
+            << ", label=\"right\", labelfloat=true];\n";
+      visualize_recursive(node->right);
     }
 
     if (node->parent->is_not_nil()) {
-      file << "  node" << node_ptr << " -> node" << parent_ptr
-           << " [color=" << kParentEdgeColor << ", style=" << kParentEdgeStyle
-           << "];\n";
+      file_ << "  node" << node_ptr << " -> node" << parent_ptr
+            << " [color=" << kParentEdgeColor << ", style=" << kParentEdgeStyle
+            << "];\n";
     }
   }
 
-  void ExecuteGenerateCommand() {
+  void execute_generate_command(const std::string& dot_name,
+                                const std::string& png_name) {
     std::string command;
     command += "dot -Tpng ";
-    command += kDotFilename;
+    command += dot_name;
     command += " -o ";
-    command += kPngFilename;
+    command += png_name;
     if (std::system(command.c_str()) != 0) {
       throw std::runtime_error(kGenerateErrorMessage);
     }
   }
 
-  std::ofstream file;
+  std::ofstream file_;
 };
 
 template <class Key, class T, class Compare = std::less<Key>,

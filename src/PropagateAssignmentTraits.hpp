@@ -1,7 +1,7 @@
 #include <memory>
 
 template <typename Alloc>
-class propagate_assignment_traits {
+class PropagateAssignmentTraits {
   using allocator_traits = std::allocator_traits<Alloc>;
   using copy_type =
       typename allocator_traits::propagate_on_container_copy_assignment;
