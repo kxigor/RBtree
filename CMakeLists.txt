@@ -66,6 +66,12 @@ add_google_test(
     src/tests/GoogleStateBasedExampleDrivenTests.cpp
 )
 
+# Adding Propagates Tests
+add_google_test(
+    GooglePropagatesTests
+    src/tests/GooglePropagatesTests.cpp
+)
+
 # Adding Stress Tests
 add_google_test(
     GoogleStressTests

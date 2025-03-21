@@ -185,6 +185,15 @@ class RBtree {
     }
   }
 
+  explicit RBtree(const Allocator& alloc) : alloc_(alloc), basic_alloc_(alloc) {
+    construct_nil();
+  }
+
+  explicit RBtree(const Compare& comp, const Allocator& alloc = Allocator())
+      : compare_(comp), alloc_(alloc), basic_alloc_(alloc) {
+    construct_nil();
+  }
+
   /*TODO a lot of tests*/
   RBtree(const RBtree& other)
       : alloc_(
@@ -233,6 +242,7 @@ class RBtree {
       this->swap_internal(tmp);
     } else {
       RBtree tmp(other, alloc_, basic_alloc_);
+      // Переписать эту хуйню
       this->swap_internal(tmp);
     }
     return *this;
@@ -251,7 +261,7 @@ class RBtree {
 
  public:
   [[nodiscard]] allocator_type get_allocator() const noexcept {
-    return allocator_type();
+    return allocator_type(alloc_);
   }
 
   /*========================== Element access =========================*/
@@ -469,18 +479,18 @@ class RBtree {
         lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), kComparePred);
   }
 
-  friend void swap(RBtree& lhs, RBtree& rhs) {
+  void swap(RBtree& other) noexcept {
     if constexpr (node_allocator_traits::propagate_on_container_swap::value) {
-      std::swap(lhs.alloc_, rhs.alloc_);
+      std::swap(this->alloc_, other.alloc_);
     }
     if constexpr (valued_node_allocator_traits::propagate_on_container_swap::
                       value) {
-      std::swap(lhs.basic_alloc_, rhs.basic_alloc_);
+      std::swap(this->basic_alloc_, other.basic_alloc_);
     }
-    std::swap(lhs.NIL_, rhs.NIL_);
-    std::swap(lhs.root_, rhs.root_);
-    std::swap(lhs.compare_, rhs.compare_);
-    std::swap(lhs.size_, rhs.size_);
+    std::swap(this->NIL_, other.NIL_);
+    std::swap(this->root_, other.root_);
+    std::swap(this->compare_, other.compare_);
+    std::swap(this->size_, other.size_);
   }
 
  private:
@@ -953,3 +963,11 @@ class RBtree<Key, T, Compare, Allocator>::Iterator {
   /*================================ Fields ================================*/
   node_type* current_node_{nullptr};
 };
+
+namespace std {
+template <class Key, class T, class Compare, class Allocator>
+void swap(RBtree<Key, T, Compare, Allocator>& lhs,
+          RBtree<Key, T, Compare, Allocator>& rhs) noexcept {
+  lhs.swap(rhs);
+}
+}  // namespace std

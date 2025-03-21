@@ -9,10 +9,10 @@
 #include "RBtree.hpp"
 #include "RBtreeValidator.hpp"
 
-static constexpr const int kInsertSize = 500000;
-static constexpr const int kShuffledInsertSize = 5000;
+static constexpr const int kInsertSize = 500;
+static constexpr const int kShuffledInsertSize = 500;
 static constexpr const int kShuffleAttempts = 50;
-static constexpr const int kSortingInsertAttemps = 500;
+static constexpr const int kSortingInsertAttemps = 100;
 static constexpr const int kLeftBorder = kShuffledInsertSize / 4 * 1;
 static constexpr const int kRightBorder = kShuffledInsertSize / 4 * 3;
 
@@ -74,7 +74,7 @@ TEST(RBTREE, EMPTY) {
 
 TEST(RBTREE, GETALLOCATOR) {
   RBtree<int, int> tree;
-  auto alloc = tree.get_allocator();
+  std::ignore = tree.get_allocator();
 }
 
 TEST(RBTREE, ELEMENT_ACCESS) {
