@@ -228,7 +228,7 @@ class RBtree {
       RBtree tmp(other, other.alloc_, other.basic_alloc_);
       this->swap_internal(tmp);
     } else {
-      RBtree tmp(other, valued_node_allocator_type(), node_allocator_type());
+      RBtree tmp(other, alloc_, basic_alloc_);
       this->swap_internal(tmp);
     }
     return *this;

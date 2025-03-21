@@ -21,7 +21,12 @@ class PropagateAssignmentTraits {
  private:
   template <typename PropageteType>
   static constexpr bool impl(const Alloc& alloc, const Alloc& other_alloc) {
-    return PropageteType::value ||
-           (!allocator_traits::is_always_equal::value && alloc != other_alloc);
+    // TODO delete shit
+    (void)alloc;
+    (void)other_alloc;
+    if constexpr (PropageteType::value) {
+      return true;
+    }
+    return false;
   }
 };

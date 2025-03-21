@@ -10,10 +10,4 @@
 // #include "src/RBtreeValidator.hpp"
 // #include "src/RBtreeVizualizer.hpp"
 
-#include <map>
-
-int main() {
-  std::map<int, int> a;
-  std::map<int, int> b;
-  std::swap(a, b);
-}
+int main() {}
