@@ -12,8 +12,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "PropagateAssignmentTraits.hpp"
-
 template <class Key, class T, class Compare = std::less<Key>,
           class Allocator = std::allocator<std::pair<const Key, T>>>
 class RBtree {
@@ -167,9 +165,6 @@ class RBtree {
   using valued_node_allocator_traits =
       std::allocator_traits<valued_node_allocator_type>;
 
-  using valued_node_pat = PropagateAssignmentTraits<valued_node_allocator_type>;
-  using node_pat = PropagateAssignmentTraits<node_allocator_type>;
-
   using color_type = typename node_type::Color;
 
  public:
@@ -223,8 +218,9 @@ class RBtree {
 
   /*TODO tests*/
   RBtree& operator=(const RBtree& other) {
-    if (valued_node_pat::is_other_allocator_copy(alloc_, other.alloc_) &&
-        node_pat::is_other_allocator_copy(basic_alloc_, other.basic_alloc_)) {
+    if (valued_node_allocator_traits::propagate_on_container_copy_assignment::
+            value &&
+        node_allocator_traits::propagate_on_container_copy_assignment::value) {
       RBtree tmp(other, other.alloc_, other.basic_alloc_);
       this->swap_internal(tmp);
     } else {
@@ -236,8 +232,9 @@ class RBtree {
 
   /*TODO tests*/
   RBtree& operator=(RBtree&& other) {
-    if (valued_node_pat::is_other_allocator_copy(alloc_, other.alloc_) &&
-        node_pat::is_other_allocator_copy(basic_alloc_, other.basic_alloc_)) {
+    if (valued_node_allocator_traits::propagate_on_container_move_assignment::
+            value &&
+        node_allocator_traits::propagate_on_container_move_assignment::value) {
       RBtree tmp(std::move(other));
       this->swap_internal(tmp);
     } else {
